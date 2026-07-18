@@ -202,8 +202,8 @@
     display:grid;
     grid-template-columns:1fr 1fr;
     border-bottom:1px solid var(--line);
-    height:37px;
-    flex:0 0 auto;
+    min-height:37px;
+    flex:1 1 37px;
   }
   .income-row:last-child{border-bottom:none;}
   .income-row .il{
@@ -231,7 +231,7 @@
   .income-row.total{
     background:#f1efe6;
     border-top:1px solid var(--line);
-    margin-top:auto;
+    flex:0 0 37px;
   }
   .income-row.total .il{color:var(--emerald-dark);font-weight:700;border-right:1px solid var(--line);}
   .income-row.total .iv{justify-content:center;font-weight:700;color:var(--emerald-dark);}
@@ -552,7 +552,7 @@ function blankQuarter(){
     bankProfit: 0,
     quarterIncome: 0,
     otherIncome: 0,
-    vouchers: [ {detail:'',amount:0}, {detail:'',amount:0}, {detail:'',amount:0} ]
+    vouchers: [ {detail:'',amount:0}, {detail:'',amount:0}, {detail:'',amount:0}, {detail:'',amount:0} ]
   };
 }
 
@@ -746,6 +746,28 @@ const confirmModal = document.getElementById('confirmModal');
 document.getElementById('downloadBtn').addEventListener('click', ()=>{
   const period = periodSelect.value;
   const keysToCheck = period === 'FULL' ? ['Q1','Q2','Q3','Q4'] : [period];
+
+  // Every voucher row must have BOTH a detail and an amount, or be
+  // left fully blank. A detail with no amount, or an amount with no
+  // detail, is incomplete.
+  const incomplete = [];
+  keysToCheck.forEach(k=>{
+    state[k].vouchers.forEach((v,i)=>{
+      const hasDetail = v.detail && v.detail.trim() !== '';
+      const hasAmount = parseFloat(v.amount) > 0;
+      if(hasDetail && !hasAmount){
+        incomplete.push(`${PERIOD_LABELS[k]}, row ${i+1}: amount is missing for "${v.detail.trim()}"`);
+      } else if(hasAmount && !hasDetail){
+        incomplete.push(`${PERIOD_LABELS[k]}, row ${i+1}: detail is missing for amount ${fmt(v.amount)}`);
+      }
+    });
+  });
+
+  if(incomplete.length){
+    alert(`Cannot proceed — some voucher rows are incomplete:\n\n${incomplete.join('\n')}\n\nEach voucher row needs both a detail and an amount.`);
+    return;
+  }
+
   const negative = keysToCheck.filter(k => quarterTotals(state[k]).remaining < 0);
 
   if(negative.length){
