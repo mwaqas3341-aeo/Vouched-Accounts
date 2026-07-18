@@ -135,6 +135,10 @@
     padding:14mm 12mm;
     border:1px solid var(--line);
     box-shadow:0 2px 10px rgba(0,0,0,.08);
+    box-sizing:border-box;
+    min-height:297mm; /* one full A4 page */
+    display:flex;
+    flex-direction:column;
   }
 
   .doc-header{
@@ -313,7 +317,8 @@
   }
 
   .signature-block{
-    margin-top:40px;
+    margin-top:auto;
+    padding-top:40px;
     display:flex;
     justify-content:space-between;
     align-items:flex-end;
