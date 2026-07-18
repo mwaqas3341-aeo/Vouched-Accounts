@@ -97,6 +97,12 @@
   }
   .lookup-status.ok{color:var(--emerald);}
   .lookup-status.err{color:var(--danger);}
+  .value.grand.negative{color:var(--danger);}
+  .balance-error{
+    margin-top:8px; padding:8px 12px; border-radius:6px;
+    background:#fdecea; color:var(--danger); border:1px solid var(--danger);
+    font-size:13px; font-weight:600;
+  }
 
   .btn{
     font-family:inherit;
@@ -481,6 +487,7 @@ function blankQuarter(){
     prevBalance: 0,
     bankProfit: 0,
     quarterIncome: 0,
+    otherIncome: 0,
     vouchers: [ {detail:'',amount:0}, {detail:'',amount:0}, {detail:'',amount:0} ]
   };
 }
@@ -509,7 +516,7 @@ function fmt(n){
 
 function quarterTotals(q){
   const totalExpenditure = q.vouchers.reduce((s,v)=>s+(parseFloat(v.amount)||0),0);
-  const totalIncome = (parseFloat(q.prevBalance)||0) + (parseFloat(q.bankProfit)||0) + (parseFloat(q.quarterIncome)||0);
+  const totalIncome = (parseFloat(q.prevBalance)||0) + (parseFloat(q.bankProfit)||0) + (parseFloat(q.quarterIncome)||0) + (parseFloat(q.otherIncome)||0);
   const remaining = totalIncome - totalExpenditure;
   return {totalIncome, totalExpenditure, remaining};
 }
@@ -543,6 +550,10 @@ function renderQuarterSection(key, opts){
           <label>${PERIOD_LABELS[key]} Income</label>
           <input type="number" step="0.01" data-q="${key}" data-f="quarterIncome" value="${q.quarterIncome || ''}" placeholder="0">
         </div>
+        <div class="field">
+          <label>Other</label>
+          <input type="number" step="0.01" data-q="${key}" data-f="otherIncome" value="${q.otherIncome || ''}" placeholder="0">
+        </div>
       </div>
 
       <table class="vouchers">
@@ -556,8 +567,9 @@ function renderQuarterSection(key, opts){
       <div class="totals">
         <div class="label">Total Income</div><div class="value">${fmt(t.totalIncome)}</div>
         <div class="label">Total Expenditure</div><div class="value">${fmt(t.totalExpenditure)}</div>
-        <div class="label grand">Remaining Balance</div><div class="value grand">${fmt(t.remaining)}</div>
+        <div class="label grand">Remaining Balance</div><div class="value grand ${t.remaining < 0 ? 'negative' : ''}">${fmt(t.remaining)}</div>
       </div>
+      ${t.remaining < 0 ? `<div class="balance-error">⚠ ${showHeading ? opts.heading + ': ' : ''}Expenditure exceeds income by ${fmt(Math.abs(t.remaining))}. Remaining balance cannot be negative — please correct the entries.</div>` : ''}
     </div>
   `;
 }
@@ -638,6 +650,16 @@ function attachFieldListeners(){
 /* ---------------- Download flow ---------------- */
 const confirmModal = document.getElementById('confirmModal');
 document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  const period = periodSelect.value;
+  const keysToCheck = period === 'FULL' ? ['Q1','Q2','Q3','Q4'] : [period];
+  const negative = keysToCheck.filter(k => quarterTotals(state[k]).remaining < 0);
+
+  if(negative.length){
+    const labels = negative.map(k => PERIOD_LABELS[k]).join(', ');
+    alert(`Cannot proceed: expenditure exceeds income in ${labels}.\n\nPlease correct the entries so the remaining balance is not negative before downloading.`);
+    return;
+  }
+
   confirmModal.classList.add('show');
 });
 document.getElementById('modalCancel').addEventListener('click', ()=>{
