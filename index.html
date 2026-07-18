@@ -414,21 +414,47 @@ let lookupTimer = null;
 emisInput.addEventListener('input', () => {
   clearTimeout(lookupTimer);
   const code = emisInput.value.trim();
-  if(!code){ schoolNameDisplay.value=''; schoolName=''; lookupStatus.textContent=''; renderAll(); return; }
-  lookupTimer = setTimeout(() => lookupSchool(code), 450);
+
+  if(!code){
+    schoolNameDisplay.value=''; schoolName=''; lookupStatus.textContent=''; renderAll(); return;
+  }
+
+  if(code.length < 8){
+    schoolNameDisplay.value=''; schoolName='';
+    lookupStatus.textContent = `Enter ${8 - code.length} more digit(s)...`;
+    lookupStatus.className = "lookup-status";
+    renderAll();
+    return;
+  }
+
+  // Exactly 8 (or more) digits typed — search now, no debounce needed
+  lookupTimer = setTimeout(() => lookupSchool(code), 150);
 });
 
 async function lookupSchool(code){
   lookupStatus.textContent = "Looking up...";
   lookupStatus.className = "lookup-status";
   try{
-    const { data, error } = await supabase
+    // EMIS may be stored as text or as a number in Supabase — try the
+    // value as-typed first, and if that finds nothing, retry as a number
+    // (covers int8/numeric EMIS columns).
+    let { data, error } = await supabase
       .from(TABLE_NAME)
       .select(NAME_COLUMN)
       .eq(EMIS_COLUMN, code)
       .maybeSingle();
 
     if(error) throw error;
+
+    if(!data && !isNaN(Number(code))){
+      const retry = await supabase
+        .from(TABLE_NAME)
+        .select(NAME_COLUMN)
+        .eq(EMIS_COLUMN, Number(code))
+        .maybeSingle();
+      if(retry.error) throw retry.error;
+      data = retry.data;
+    }
 
     if(data){
       schoolName = data[NAME_COLUMN];
