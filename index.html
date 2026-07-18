@@ -339,6 +339,18 @@
 
   .avoid-break{page-break-inside:avoid;}
 
+  .bottom-download{
+    max-width:900px;
+    margin:0 auto 60px;
+    padding:0 20px;
+    display:flex;
+    justify-content:center;
+  }
+  .bottom-download .btn{
+    padding:14px 40px;
+    font-size:1rem;
+  }
+
   /* ---------- Modal ---------- */
   .modal-overlay{
     position:fixed;inset:0;
@@ -375,7 +387,7 @@
   }
 
   @media print{
-    .app-bar,.controls,.row-actions,.remove-row-btn,.add-row-btn{display:none;}
+    .app-bar,.controls,.row-actions,.remove-row-btn,.add-row-btn,.bottom-download{display:none;}
   }
 </style>
 </head>
@@ -410,7 +422,6 @@
     <label for="yearInput">Financial Year</label>
     <input type="text" id="yearInput" placeholder="2025-26" value="2025-26">
   </div>
-  <button class="btn btn-primary" id="downloadBtn">Download PDF</button>
 </div>
 
 <div class="sheet-wrap">
@@ -447,6 +458,10 @@
       </div>
     </div>
   </div>
+</div>
+
+<div class="bottom-download">
+  <button class="btn btn-primary" id="downloadBtn">Download PDF</button>
 </div>
 
 <!-- Confirmation modal -->
@@ -617,7 +632,7 @@ function renderQuarterSection(key, opts){
 
       <div class="qtr-body">
         <div class="income-col">
-          <div class="income-header">&nbsp;</div>
+          <div class="income-header">Income Details</div>
           <div class="income-row">
             <div class="il">Previous Balance</div>
             <div class="iv"><input type="number" step="0.01" data-q="${key}" data-f="prevBalance" value="${q.prevBalance || ''}" ${opts.lockPrev ? 'readonly' : ''} placeholder="0"></div>
