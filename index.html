@@ -203,6 +203,7 @@
     grid-template-columns:1fr 1fr;
     border-bottom:1px solid var(--line);
     height:37px;
+    flex:0 0 auto;
   }
   .income-row:last-child{border-bottom:none;}
   .income-row .il{
@@ -227,7 +228,11 @@
     padding:0 4px;
   }
   .income-row .iv input:focus{outline:1px solid var(--emerald);}
-  .income-row.total{background:#f1efe6;}
+  .income-row.total{
+    background:#f1efe6;
+    border-top:1px solid var(--line);
+    margin-top:auto;
+  }
   .income-row.total .il{color:var(--emerald-dark);font-weight:700;border-right:1px solid var(--line);}
   .income-row.total .iv{justify-content:center;font-weight:700;color:var(--emerald-dark);}
 
