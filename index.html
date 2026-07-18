@@ -130,6 +130,7 @@
   /* ---------- The document itself (this part is what gets rendered to PDF) ---------- */
   #document{
     --line:#1b1b1b; /* dark, clear borders for the printed/PDF document */
+    --muted:#1b1b1b; /* writing in black; --emerald/--emerald-dark left untouched */
     background:var(--paper);
     padding:14mm 12mm;
     border:1px solid var(--line);
@@ -803,7 +804,18 @@ function generatePdfAndReset(){
     margin: 0,
     filename,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      onclone: (clonedDoc)=>{
+        // Remove the "remove row" (×) button column entirely from the PDF
+        // capture only — the live editable page is untouched. The Amount
+        // column then naturally expands to fill the freed space.
+        clonedDoc.querySelectorAll('table.vouchers td.rm, table.vouchers th:last-child, table.vouchers tr.expenditure-row td:last-child').forEach(el=>{
+          el.remove();
+        });
+      }
+    },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['css', 'legacy'] }
   };
