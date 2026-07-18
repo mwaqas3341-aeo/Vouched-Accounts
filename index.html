@@ -160,7 +160,8 @@
     margin-bottom:16px;
     padding:8px 10px;
     background:#f1efe6;
-    border-radius:4px;
+    border:1px solid var(--line);
+    border-radius:0;
   }
   .school-line b{color:var(--emerald-dark);}
 
@@ -285,17 +286,22 @@
 
   .totals{
     display:grid;
-    grid-template-columns:1fr auto;
-    gap:6px 14px;
+    grid-template-columns:1fr 110px;
     font-size:.88rem;
-    max-width:360px;
-    margin-left:auto;
-    padding:10px 12px;
-    background:#f1efe6;
-    border-radius:4px;
+    width:100%;
+    margin:0;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:0;
   }
-  .totals .label{color:var(--muted);}
+  .totals > div{
+    padding:7px 12px;
+    border-bottom:1px solid var(--line);
+  }
+  .totals > div:nth-last-child(-n+2){border-bottom:none;}
+  .totals .label{color:var(--muted);border-right:1px solid var(--line);}
   .totals .value{font-weight:600;text-align:right;}
+  .totals .grand{background:#f1efe6;}
   .totals .grand .value{color:var(--emerald-dark);font-size:1rem;}
 
   .grand-total-block{
