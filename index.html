@@ -393,8 +393,9 @@ const SUPABASE_URL = "https://bnvrblekeppkpvcjjpli.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJudnJibGVrZXBwa3B2Y2pqcGxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MTEyMjIsImV4cCI6MjA5ODI4NzIyMn0.9qmk8Msddi5FwQPY6SvM4WXVQiZUjLXJEsjxHdsgw68";
 // Assumed schools table columns — adjust these two lines if your
 // column names differ:
-const EMIS_COLUMN = "emis_code";
+const EMIS_COLUMN = "emis";
 const NAME_COLUMN = "school_name";
+const TABLE_NAME = "public_schools";
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -422,7 +423,7 @@ async function lookupSchool(code){
   lookupStatus.className = "lookup-status";
   try{
     const { data, error } = await supabase
-      .from('schools')
+      .from(TABLE_NAME)
       .select(NAME_COLUMN)
       .eq(EMIS_COLUMN, code)
       .maybeSingle();
