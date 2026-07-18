@@ -141,14 +141,6 @@
     padding-bottom:10px;
     margin-bottom:14px;
   }
-  .doc-header .emblem{
-    font-family:'Noto Serif',serif;
-    font-size:.7rem;
-    letter-spacing:.18em;
-    color:var(--gold);
-    text-transform:uppercase;
-    margin-bottom:4px;
-  }
   .doc-header h2{
     font-family:'Noto Serif',serif;
     font-size:1.05rem;
@@ -185,13 +177,69 @@
     margin-bottom:10px;
   }
 
-  .income-grid{
+  .qtr-body{
     display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    gap:10px;
-    margin-bottom:12px;
+    grid-template-columns:34% 66%;
+    gap:0;
+    border:1px solid var(--line);
+    margin-bottom:8px;
   }
-  .income-grid .field input{width:100%;}
+  .income-col{
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+  }
+  .income-col .income-header{
+    background:var(--emerald);
+    color:#fff;
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    padding:8px 8px;
+    line-height:1;
+  }
+  .income-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    border-bottom:1px solid var(--line);
+    height:37px;
+  }
+  .income-row:last-child{border-bottom:none;}
+  .income-row .il{
+    display:flex;align-items:center;
+    padding:0 8px;
+    font-size:.82rem;
+    font-weight:600;
+    color:var(--muted);
+    border-right:1px solid var(--line);
+    line-height:1.15;
+  }
+  .income-row .iv{display:flex;align-items:center;padding:0 6px;height:100%;}
+  .income-row .iv input{
+    width:100%;
+    height:100%;
+    border:none;
+    background:transparent;
+    font-family:inherit;
+    font-size:.85rem;
+    font-weight:600;
+    text-align:center;
+    padding:0 4px;
+  }
+  .income-row .iv input:focus{outline:1px solid var(--emerald);}
+  .income-row.total{background:#f1efe6;}
+  .income-row.total .il{color:var(--emerald-dark);font-weight:700;border-right:1px solid var(--line);}
+  .income-row.total .iv{justify-content:center;font-weight:700;color:var(--emerald-dark);}
+
+  .voucher-col table.vouchers{margin-bottom:0;}
+  .voucher-col table.vouchers, .voucher-col table.vouchers td, .voucher-col table.vouchers th{border-color:var(--line);}
+  table.vouchers tr.expenditure-row td{
+    font-weight:700;
+    background:#f1efe6;
+    color:var(--emerald-dark);
+    height:37px;
+    box-sizing:border-box;
+  }
 
   table.vouchers{
     width:100%;
@@ -205,10 +253,13 @@
     font-size:.72rem;
     text-transform:uppercase;
     letter-spacing:.04em;
-    padding:6px 8px;
+    padding:8px 8px;
     text-align:left;
+    line-height:1;
   }
   table.vouchers td{
+    height:37px;
+    box-sizing:border-box;
     border:1px solid var(--line);
     padding:5px 7px;
   }
@@ -251,9 +302,11 @@
   .signature-block{
     margin-top:40px;
     display:flex;
-    justify-content:flex-end;
+    justify-content:space-between;
+    align-items:flex-end;
     page-break-inside:avoid;
   }
+  .signature-block.single{justify-content:flex-end;}
   .signature-block .sig{
     text-align:center;
     min-width:220px;
@@ -349,7 +402,6 @@
 <div class="sheet-wrap">
   <div id="document">
     <div class="doc-header">
-      <div class="emblem">Government of the Punjab &middot; Elementary Education Department</div>
       <h2 id="docTitle">DETAIL OF VOUCHED ACCOUNT</h2>
       <div class="sub" id="docSubtitle">1st Quarter, Financial Year 2025-26</div>
     </div>
@@ -370,7 +422,10 @@
       </div>
     </div>
 
-    <div class="signature-block avoid-break">
+    <div class="signature-block avoid-break" id="signatureBlock">
+      <div class="sig" id="aeoSigBlock">
+        <div class="sig-line">Signature Assistant Education Officer <span id="aeoMarkazName"></span></div>
+      </div>
       <div class="sig">
         <div class="sig-line">Signature Head Master</div>
         <div class="sig-school" id="sigSchoolName">&nbsp;</div>
@@ -401,6 +456,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // column names differ:
 const EMIS_COLUMN = "emis";
 const NAME_COLUMN = "school_name";
+const MARKAZ_COLUMN = "markaz_name";
 const TABLE_NAME = "public_schools";
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -410,6 +466,7 @@ const PERIOD_LABELS = {
 };
 
 let schoolName = "";
+let markazName = "";
 
 /* ---------------- EMIS lookup ---------------- */
 const emisInput = document.getElementById('emisInput');
@@ -422,11 +479,11 @@ emisInput.addEventListener('input', () => {
   const code = emisInput.value.trim();
 
   if(!code){
-    schoolNameDisplay.value=''; schoolName=''; lookupStatus.textContent=''; renderAll(); return;
+    schoolNameDisplay.value=''; schoolName=''; markazName=''; lookupStatus.textContent=''; renderAll(); return;
   }
 
   if(code.length < 8){
-    schoolNameDisplay.value=''; schoolName='';
+    schoolNameDisplay.value=''; schoolName=''; markazName='';
     lookupStatus.textContent = `Enter ${8 - code.length} more digit(s)...`;
     lookupStatus.className = "lookup-status";
     renderAll();
@@ -446,7 +503,7 @@ async function lookupSchool(code){
     // (covers int8/numeric EMIS columns).
     let { data, error } = await sb
       .from(TABLE_NAME)
-      .select(NAME_COLUMN)
+      .select(`${NAME_COLUMN}, ${MARKAZ_COLUMN}`)
       .eq(EMIS_COLUMN, code)
       .maybeSingle();
 
@@ -455,7 +512,7 @@ async function lookupSchool(code){
     if(!data && !isNaN(Number(code))){
       const retry = await sb
         .from(TABLE_NAME)
-        .select(NAME_COLUMN)
+        .select(`${NAME_COLUMN}, ${MARKAZ_COLUMN}`)
         .eq(EMIS_COLUMN, Number(code))
         .maybeSingle();
       if(retry.error) throw retry.error;
@@ -464,11 +521,13 @@ async function lookupSchool(code){
 
     if(data){
       schoolName = data[NAME_COLUMN];
+      markazName = data[MARKAZ_COLUMN] || "";
       schoolNameDisplay.value = schoolName;
       lookupStatus.textContent = "Found";
       lookupStatus.className = "lookup-status ok";
     } else {
       schoolName = "";
+      markazName = "";
       schoolNameDisplay.value = "";
       lookupStatus.textContent = "No school found for this EMIS code";
       lookupStatus.className = "lookup-status err";
@@ -508,6 +567,9 @@ const docSubtitle = document.getElementById('docSubtitle');
 const docSchoolName = document.getElementById('docSchoolName');
 const docEmis = document.getElementById('docEmis');
 const sigSchoolName = document.getElementById('sigSchoolName');
+const aeoSigBlock = document.getElementById('aeoSigBlock');
+const aeoMarkazName = document.getElementById('aeoMarkazName');
+const signatureBlock = document.getElementById('signatureBlock');
 const grandTotalBlock = document.getElementById('grandTotalBlock');
 
 function fmt(n){
@@ -537,29 +599,46 @@ function renderQuarterSection(key, opts){
   return `
     <div class="qtr-section avoid-break">
       ${showHeading ? `<div class="qtr-section-title">${opts.heading}</div>` : ''}
-      <div class="income-grid">
-        <div class="field">
-          <label>Previous Balance</label>
-          <input type="number" step="0.01" data-q="${key}" data-f="prevBalance" value="${q.prevBalance || ''}" ${opts.lockPrev ? 'readonly' : ''} placeholder="0">
+
+      <div class="qtr-body">
+        <div class="income-col">
+          <div class="income-header">&nbsp;</div>
+          <div class="income-row">
+            <div class="il">Previous Balance</div>
+            <div class="iv"><input type="number" step="0.01" data-q="${key}" data-f="prevBalance" value="${q.prevBalance || ''}" ${opts.lockPrev ? 'readonly' : ''} placeholder="0"></div>
+          </div>
+          <div class="income-row">
+            <div class="il">Bank Profit</div>
+            <div class="iv"><input type="number" step="0.01" data-q="${key}" data-f="bankProfit" value="${q.bankProfit || ''}" placeholder="0"></div>
+          </div>
+          <div class="income-row">
+            <div class="il">${PERIOD_LABELS[key]} Income</div>
+            <div class="iv"><input type="number" step="0.01" data-q="${key}" data-f="quarterIncome" value="${q.quarterIncome || ''}" placeholder="0"></div>
+          </div>
+          <div class="income-row">
+            <div class="il">Other</div>
+            <div class="iv"><input type="number" step="0.01" data-q="${key}" data-f="otherIncome" value="${q.otherIncome || ''}" placeholder="0"></div>
+          </div>
+          <div class="income-row total">
+            <div class="il">Total Income</div>
+            <div class="iv">${fmt(t.totalIncome)}</div>
+          </div>
         </div>
-        <div class="field">
-          <label>Bank Profit</label>
-          <input type="number" step="0.01" data-q="${key}" data-f="bankProfit" value="${q.bankProfit || ''}" placeholder="0">
-        </div>
-        <div class="field">
-          <label>${PERIOD_LABELS[key]} Income</label>
-          <input type="number" step="0.01" data-q="${key}" data-f="quarterIncome" value="${q.quarterIncome || ''}" placeholder="0">
-        </div>
-        <div class="field">
-          <label>Other</label>
-          <input type="number" step="0.01" data-q="${key}" data-f="otherIncome" value="${q.otherIncome || ''}" placeholder="0">
+
+        <div class="voucher-col">
+          <table class="vouchers">
+            <thead><tr><th>Sr.</th><th>Detail of Vouchers</th><th>Amount</th><th></th></tr></thead>
+            <tbody>${rows}
+              <tr class="expenditure-row">
+                <td colspan="2">Total Expenditure</td>
+                <td class="amt">${fmt(t.totalExpenditure)}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <table class="vouchers">
-        <thead><tr><th>Sr.</th><th>Detail of Vouchers</th><th>Amount</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
       <div class="row-actions">
         <button class="btn btn-small btn-ghost add-row-btn" data-q="${key}">+ Add Bill Row</button>
       </div>
@@ -580,6 +659,16 @@ function renderAll(){
   docEmis.textContent = emisInput.value.trim() || '\u2014';
   docSchoolName.textContent = schoolName || '\u2014';
   sigSchoolName.textContent = schoolName || '';
+
+  const isSecondary = /secondary/i.test(markazName || '');
+  if(markazName && !isSecondary){
+    aeoMarkazName.textContent = markazName;
+    aeoSigBlock.style.display = '';
+    signatureBlock.classList.remove('single');
+  } else {
+    aeoSigBlock.style.display = 'none';
+    signatureBlock.classList.add('single');
+  }
 
   if(period === 'FULL'){
     // carry balances forward
@@ -693,6 +782,7 @@ function resetForm(){
   emisInput.value = '';
   schoolNameDisplay.value = '';
   schoolName = '';
+  markazName = '';
   lookupStatus.textContent = '';
   periodSelect.value = 'Q1';
   renderAll();
