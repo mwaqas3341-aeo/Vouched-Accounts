@@ -397,7 +397,7 @@ const EMIS_COLUMN = "emis";
 const NAME_COLUMN = "school_name";
 const TABLE_NAME = "public_schools";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const PERIOD_LABELS = {
   Q1: "1st Quarter", Q2: "2nd Quarter", Q3: "3rd Quarter", Q4: "4th Quarter"
@@ -438,7 +438,7 @@ async function lookupSchool(code){
     // EMIS may be stored as text or as a number in Supabase — try the
     // value as-typed first, and if that finds nothing, retry as a number
     // (covers int8/numeric EMIS columns).
-    let { data, error } = await supabase
+    let { data, error } = await sb
       .from(TABLE_NAME)
       .select(NAME_COLUMN)
       .eq(EMIS_COLUMN, code)
@@ -447,7 +447,7 @@ async function lookupSchool(code){
     if(error) throw error;
 
     if(!data && !isNaN(Number(code))){
-      const retry = await supabase
+      const retry = await sb
         .from(TABLE_NAME)
         .select(NAME_COLUMN)
         .eq(EMIS_COLUMN, Number(code))
