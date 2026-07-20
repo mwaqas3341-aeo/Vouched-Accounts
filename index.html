@@ -344,7 +344,10 @@
     margin-top:2px;
   }
 
-  .avoid-break{page-break-inside:avoid; break-inside:avoid;}
+  .signature-block,.totals,.grand-total-block{page-break-inside:avoid;break-inside:avoid;}
+table.vouchers{break-inside:auto;page-break-inside:auto;}
+table.vouchers tr{break-inside:avoid;page-break-inside:avoid;}
+.grand-total-block{break-before:page;page-break-before:always;}
 
   /* ---------- Modal ---------- */
   .modal-overlay{
@@ -439,8 +442,7 @@
 
     <div id="quarterSections"><!-- quarter section(s) rendered here by JS --></div>
 
-    <div class="html2pdf__page-break" id="grandTotalBreak" style="display:none;"></div>
-    <div id="grandTotalBlock" class="grand-total-block avoid-break" style="display:none;">
+        <div id="grandTotalBlock" class="grand-total-block avoid-break" style="display:none;">
       <div class="qtr-section-title" id="grandTotalHeading">Full Year Summary</div>
       <div class="totals">
         <div class="label" id="ftIncomeLabel">Total Income (Full Year)</div><div class="value" id="ftIncome">0</div>
@@ -748,7 +750,6 @@ function renderAll(){
     docSubtitle.textContent = `Financial Year ${year}`;
 
     quarterSectionsEl.innerHTML = quarterKeys.map((k,i) =>
-      (i>0 ? '<div class="html2pdf__page-break"></div>' : '') +
       renderQuarterSection(k, {heading:PERIOD_LABELS[k], lockPrev: i>0})
     ).join('');
 
@@ -892,7 +893,7 @@ function generatePdfAndReset(){
       // placed before each subsequent quarter and before the summary —
       // each quarter is now large (18 rows + its own signature) and
       // self-contained, so one-quarter-per-page wastes little space.
-      pagebreak: { mode: ['legacy'] }
+      pagebreak: { mode: ['css','legacy'], avoid:['table','tr','.signature-block','.totals','.grand-total-block'] }
     };
 
     html2pdf().set(opt).from(el).save().then(()=>{
