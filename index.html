@@ -320,6 +320,8 @@
     margin-top:8px;
     border-top:2px solid var(--emerald);
     padding-top:14px;
+    page-break-before: always;
+    break-before: page;
   }
 
   .signature-block{
@@ -386,6 +388,13 @@
     justify-content:center;
   }
 
+  /* Each quarter in Full Year mode starts on its own fresh page, so
+     tables never get cut across a page boundary or leave big blank
+     gaps. Single-quarter mode is unaffected (only one .qtr-section). */
+  #quarterSections > .qtr-section + .qtr-section{
+    page-break-before: always;
+    break-before: page;
+  }
   @media print{
     .app-bar,.controls,.row-actions,.remove-row-btn,.add-row-btn{display:none;}
   }
@@ -520,7 +529,10 @@ emisInput.addEventListener('input', () => {
     return;
   }
 
-  // Exactly 8 (or more) digits typed — search now, no debounce needed
+  // Exactly 8 (or more) digits typed — search now, no debounce needed.
+  // Refresh the doc display immediately so "EMIS Code" always shows what
+  // was actually typed, instead of waiting for the async lookup to finish.
+  renderAll();
   lookupTimer = setTimeout(() => lookupSchool(code), 150);
 });
 
