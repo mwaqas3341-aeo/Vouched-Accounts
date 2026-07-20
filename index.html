@@ -323,8 +323,6 @@
     margin-top:8px;
     border-top:2px solid var(--emerald);
     padding-top:14px;
-    page-break-before: always;
-    break-before: page;
   }
 
   .signature-block{
@@ -389,12 +387,13 @@
     justify-content:center;
   }
 
-  /* Each quarter in Full Year mode starts on its own fresh page, so
-     tables never get cut across a page boundary or leave big blank
-     gaps. Single-quarter mode is unaffected (only one .qtr-section). */
-  #quarterSections > .qtr-section + .qtr-section{
-    page-break-before: always;
-    break-before: page;
+  /* Explicit page-break markers (inserted between quarters and before
+     the Full Year Summary in JS) — html2pdf's "legacy" pagebreak mode
+     forces a fresh page at these. Zero height so they're invisible in
+     the on-screen editor. */
+  .html2pdf__page-break{
+    height:0;
+    display:block;
   }
   @media print{
     .app-bar,.controls,.row-actions,.remove-row-btn,.add-row-btn{display:none;}
@@ -448,6 +447,7 @@
 
     <div id="quarterSections"><!-- quarter section(s) rendered here by JS --></div>
 
+    <div class="html2pdf__page-break" id="grandTotalBreak" style="display:none;"></div>
     <div id="grandTotalBlock" class="grand-total-block avoid-break" style="display:none;">
       <div class="qtr-section-title">Full Year Summary</div>
       <div class="totals">
@@ -614,6 +614,7 @@ const aeoSigBlock = document.getElementById('aeoSigBlock');
 const aeoMarkazName = document.getElementById('aeoMarkazName');
 const signatureBlock = document.getElementById('signatureBlock');
 const grandTotalBlock = document.getElementById('grandTotalBlock');
+const grandTotalBreak = document.getElementById('grandTotalBreak');
 
 function fmt(n){
   return (Math.round((n||0)*100)/100).toLocaleString();
@@ -724,8 +725,11 @@ function renderAll(){
 
     quarterSectionsEl.innerHTML =
       renderQuarterSection('Q1', {heading:'1st Quarter', lockPrev:false}) +
+      '<div class="html2pdf__page-break"></div>' +
       renderQuarterSection('Q2', {heading:'2nd Quarter', lockPrev:true}) +
+      '<div class="html2pdf__page-break"></div>' +
       renderQuarterSection('Q3', {heading:'3rd Quarter', lockPrev:true}) +
+      '<div class="html2pdf__page-break"></div>' +
       renderQuarterSection('Q4', {heading:'4th Quarter', lockPrev:true});
 
     const allQ = ['Q1','Q2','Q3','Q4'].map(k=>quarterTotals(state[k]));
@@ -736,11 +740,13 @@ function renderAll(){
     document.getElementById('ftExpenditure').textContent = fmt(ftExpenditure);
     document.getElementById('ftBalance').textContent = fmt(ftBalance);
     grandTotalBlock.style.display = 'block';
+    grandTotalBreak.style.display = 'block';
   } else {
     docTitle.textContent = "DETAIL OF VOUCHED ACCOUNT";
     docSubtitle.textContent = `${PERIOD_LABELS[period]}, Financial Year ${year}`;
     quarterSectionsEl.innerHTML = renderQuarterSection(period, {heading:null, lockPrev:false});
     grandTotalBlock.style.display = 'none';
+    grandTotalBreak.style.display = 'none';
   }
 
   attachFieldListeners();
