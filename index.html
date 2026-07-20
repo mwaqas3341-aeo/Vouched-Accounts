@@ -137,7 +137,7 @@
 
   /* ---------- The document itself (this part is what gets rendered to PDF) ---------- */
   #document{
-    background:var(--paper);
+    background:#fff;
     padding:8mm 6mm;
     border:1px solid #000;
     box-shadow:0 2px 10px rgba(0,0,0,.08);
@@ -150,7 +150,7 @@
 
   .doc-header{
     text-align:center;
-    border-bottom:2px solid var(--emerald);
+    border-bottom:2px solid #000;
     padding-bottom:10px;
     margin-bottom:14px;
   }
@@ -159,11 +159,11 @@
     font-size:1.05rem;
     font-weight:700;
     margin:0 0 4px;
-    color:var(--emerald-dark);
+    color:#000;
   }
   .doc-header .sub{
     font-size:.82rem;
-    color:var(--muted);
+    color:#333;
   }
 
   .school-line{
@@ -172,11 +172,11 @@
     font-size:.88rem;
     margin-bottom:16px;
     padding:8px 10px;
-    background:#f1efe6;
+    background:#fff;
     border:1px solid #000;
     border-radius:0;
   }
-  .school-line b{color:var(--emerald-dark);}
+  .school-line b{color:#000;}
 
   .qtr-section{
     margin-bottom:22px;
@@ -185,7 +185,7 @@
     font-family:'Noto Serif',serif;
     font-weight:600;
     font-size:.95rem;
-    color:var(--emerald-dark);
+    color:#000;
     border-bottom:1px solid #000;
     padding-bottom:5px;
     margin-bottom:10px;
@@ -204,13 +204,15 @@
     flex-direction:column;
   }
   .income-col .income-header{
-    background:var(--emerald);
+    background:#fff;
     color:#fff;
     font-size:.72rem;
     text-transform:uppercase;
     letter-spacing:.04em;
     padding:8px 8px;
     line-height:1;
+    border-bottom:1px solid #000;
+    box-sizing:border-box;
   }
   .income-row{
     display:grid;
@@ -241,21 +243,21 @@
     text-align:center;
     padding:0 4px;
   }
-  .income-row .iv input:focus{outline:1px solid var(--emerald);}
+  .income-row .iv input:focus{outline:1px solid #000;}
   .income-row.total{
-    background:#f1efe6;
+    background:#fff;
     border-top:1px solid #000;
     flex:0 0 37px;
   }
-  .income-row.total .il{color:var(--emerald-dark);font-weight:700;border-right:1px solid #000;}
-  .income-row.total .iv{justify-content:center;font-weight:700;color:var(--emerald-dark);}
+  .income-row.total .il{color:#000;font-weight:700;border-right:1px solid #000;}
+  .income-row.total .iv{justify-content:center;font-weight:700;color:#000;}
 
   .voucher-col table.vouchers{margin-bottom:0;}
   .voucher-col table.vouchers, .voucher-col table.vouchers td, .voucher-col table.vouchers th{border-color:#000;}
   table.vouchers tr.expenditure-row td{
     font-weight:700;
-    background:#f1efe6;
-    color:var(--emerald-dark);
+    background:#fff;
+    color:#000;
     height:37px;
     box-sizing:border-box;
   }
@@ -267,14 +269,16 @@
     margin-bottom:8px;
   }
   table.vouchers th{
-    background:var(--emerald);
-    color:#fff;
+    background:#fff;
+    color:#000;
     font-size:.72rem;
     text-transform:uppercase;
     letter-spacing:.04em;
     padding:8px 8px;
     text-align:left;
     line-height:1;
+    border:1px solid #000;
+    font-weight:700;
   }
   table.vouchers td{
     height:37px;
@@ -290,7 +294,7 @@
     font-size:.85rem;
     padding:2px;
   }
-  table.vouchers input:focus{outline:1px solid var(--emerald);}
+  table.vouchers input:focus{outline:1px solid #000;}
   table.vouchers td.sr{width:36px;text-align:center;color:var(--muted);}
   table.vouchers td.amt{width:110px;}
   table.vouchers td.rm{width:30px;text-align:center;}
@@ -314,12 +318,12 @@
   .totals > div:nth-last-child(-n+2){border-bottom:none;}
   .totals .label{color:var(--muted);border-right:1px solid #000;}
   .totals .value{font-weight:600;text-align:right;}
-  .totals .grand{background:#f1efe6;}
-  .totals .grand .value{color:var(--emerald-dark);font-size:1rem;}
+  .totals .grand{background:#fff;}
+  .totals .grand .value{color:#000;font-size:1rem;}
 
   .grand-total-block{
     margin-top:8px;
-    border-top:2px solid var(--emerald);
+    border-top:2px solid #000;
     padding-top:14px;
   }
 
@@ -442,6 +446,7 @@
 
     <div id="quarterSections"><!-- quarter section(s) rendered here by JS --></div>
 
+    <div class="html2pdf__page-break" id="grandTotalBreak" style="display:none;"></div>
     <div id="grandTotalBlock" class="grand-total-block avoid-break" style="display:none;">
       <div class="qtr-section-title" id="grandTotalHeading">Full Year Summary</div>
       <div class="totals">
@@ -597,7 +602,7 @@ function blankQuarter(){
     bankProfit: 0,
     quarterIncome: 0,
     otherIncome: 0,
-    vouchers: [ {detail:'',amount:0}, {detail:'',amount:0}, {detail:'',amount:0}, {detail:'',amount:0} ]
+    vouchers: Array.from({length: 18}, () => ({detail:'', amount:0}))
   };
 }
 
@@ -621,6 +626,7 @@ const aeoSigBlock = document.getElementById('aeoSigBlock');
 const aeoMarkazName = document.getElementById('aeoMarkazName');
 const signatureBlock = document.getElementById('signatureBlock');
 const grandTotalBlock = document.getElementById('grandTotalBlock');
+const grandTotalBreak = document.getElementById('grandTotalBreak');
 
 function fmt(n){
   return (Math.round((n||0)*100)/100).toLocaleString();
@@ -631,6 +637,26 @@ function quarterTotals(q){
   const totalIncome = (parseFloat(q.prevBalance)||0) + (parseFloat(q.bankProfit)||0) + (parseFloat(q.quarterIncome)||0) + (parseFloat(q.otherIncome)||0);
   const remaining = totalIncome - totalExpenditure;
   return {totalIncome, totalExpenditure, remaining};
+}
+
+function renderSignatureHTML(){
+  const isSecondary = /secondary/i.test(markazName || '');
+  const showAeo = !!markazName && !isSecondary;
+  const schoolLine = schoolName ? schoolName.replace(/</g,'&lt;') : '&nbsp;';
+  const markazLine = markazName ? markazName.replace(/</g,'&lt;') : '';
+  return `
+    <div class="signature-block avoid-break ${showAeo ? '' : 'single'}">
+      ${showAeo ? `
+      <div class="sig">
+        <div class="sig-line">Signature Assistant Education Officer</div>
+        <div class="sig-school">${markazLine}</div>
+      </div>` : ''}
+      <div class="sig">
+        <div class="sig-line">Signature Head Master</div>
+        <div class="sig-school">${schoolLine}</div>
+      </div>
+    </div>
+  `;
 }
 
 function renderQuarterSection(key, opts){
@@ -699,6 +725,7 @@ function renderQuarterSection(key, opts){
         <div class="label grand">Remaining Balance</div><div class="value grand ${t.remaining < 0 ? 'negative' : ''}">${fmt(t.remaining)}</div>
       </div>
       ${t.remaining < 0 ? `<div class="balance-error">⚠ ${showHeading ? opts.heading + ': ' : ''}Expenditure exceeds income by ${fmt(Math.abs(t.remaining))}. Remaining balance cannot be negative — please correct the entries.</div>` : ''}
+      ${showHeading ? renderSignatureHTML() : ''}
     </div>
   `;
 }
@@ -732,6 +759,7 @@ function renderAll(){
     docSubtitle.textContent = `Financial Year ${year}`;
 
     quarterSectionsEl.innerHTML = quarterKeys.map((k,i) =>
+      (i>0 ? '<div class="html2pdf__page-break"></div>' : '') +
       renderQuarterSection(k, {heading:PERIOD_LABELS[k], lockPrev: i>0})
     ).join('');
 
@@ -747,11 +775,13 @@ function renderAll(){
     document.getElementById('ftExpenditure').textContent = fmt(ftExpenditure);
     document.getElementById('ftBalance').textContent = fmt(ftBalance);
     grandTotalBlock.style.display = 'block';
+    grandTotalBreak.style.display = 'block';
   } else {
     docTitle.textContent = "DETAIL OF VOUCHED ACCOUNT";
     docSubtitle.textContent = `${PERIOD_LABELS[period]}, Financial Year ${year}`;
     quarterSectionsEl.innerHTML = renderQuarterSection(period, {heading:null, lockPrev:false});
     grandTotalBlock.style.display = 'none';
+    grandTotalBreak.style.display = 'none';
   }
 
   attachFieldListeners();
@@ -835,40 +865,6 @@ document.getElementById('modalConfirm').addEventListener('click', ()=>{
   generatePdfAndReset();
 });
 
-function mmToPx(mm){ return mm * 96 / 25.4; }
-
-// html2pdf's automatic "keep together" detection (css/avoid-all modes) is
-// unreliable — it sometimes pushes a whole section to a fresh, mostly
-// blank page even when it would fit, and sometimes splits a section
-// anyway. So instead: measure every section's real rendered height here,
-// track how much of the current A4 page (minus our print margins) is
-// already used, and insert an explicit break only where a section
-// genuinely would not fit. This runs on the live DOM right before capture.
-function insertDynamicPageBreaks(){
-  document.querySelectorAll('.html2pdf__page-break').forEach(el => el.remove());
-
-  const PAGE_HEIGHT_MM = 297;
-  const PRINT_MARGIN_MM = 40; // 20mm top + 20mm bottom (matches jsPDF margin below)
-  const usablePx = mmToPx(PAGE_HEIGHT_MM - PRINT_MARGIN_MM);
-
-  const sections = Array.from(quarterSectionsEl.querySelectorAll(':scope > .qtr-section'));
-  if(grandTotalBlock.style.display !== 'none') sections.push(grandTotalBlock);
-  sections.push(signatureBlock);
-
-  let used = 0;
-  sections.forEach((el, i) => {
-    const h = el.getBoundingClientRect().height;
-    if(i > 0 && used + h > usablePx){
-      const marker = document.createElement('div');
-      marker.className = 'html2pdf__page-break';
-      el.parentNode.insertBefore(marker, el);
-      used = h;
-    } else {
-      used += h;
-    }
-  });
-}
-
 function generatePdfAndReset(){
   const el = document.getElementById('document');
   const filename = `Vouched_Performa_${emisInput.value.trim()||'school'}_${periodSelect.value}.pdf`;
@@ -881,8 +877,6 @@ function generatePdfAndReset(){
   window.scrollTo(0, 0);
 
   setTimeout(()=>{
-    insertDynamicPageBreaks();
-
     const opt = {
       // top, left, bottom, right — in mm, per requested A4 print margins
       margin: [20, 15, 20, 15],
@@ -901,8 +895,10 @@ function generatePdfAndReset(){
         }
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      // 'legacy' mode is what actually honors our explicit, pre-measured
-      // .html2pdf__page-break markers reliably.
+      // 'legacy' mode honors the explicit .html2pdf__page-break markers
+      // placed before each subsequent quarter and before the summary —
+      // each quarter is now large (18 rows + its own signature) and
+      // self-contained, so one-quarter-per-page wastes little space.
       pagebreak: { mode: ['legacy'] }
     };
 
