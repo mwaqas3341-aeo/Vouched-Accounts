@@ -385,6 +385,8 @@
     justify-content:center;
   }
 
+  .html2pdf__page-break{ height:0; display:block; }
+
   @media print{
     .app-bar,.controls,.row-actions,.remove-row-btn,.add-row-btn{display:none;}
   }
@@ -833,6 +835,40 @@ document.getElementById('modalConfirm').addEventListener('click', ()=>{
   generatePdfAndReset();
 });
 
+function mmToPx(mm){ return mm * 96 / 25.4; }
+
+// html2pdf's automatic "keep together" detection (css/avoid-all modes) is
+// unreliable — it sometimes pushes a whole section to a fresh, mostly
+// blank page even when it would fit, and sometimes splits a section
+// anyway. So instead: measure every section's real rendered height here,
+// track how much of the current A4 page (minus our print margins) is
+// already used, and insert an explicit break only where a section
+// genuinely would not fit. This runs on the live DOM right before capture.
+function insertDynamicPageBreaks(){
+  document.querySelectorAll('.html2pdf__page-break').forEach(el => el.remove());
+
+  const PAGE_HEIGHT_MM = 297;
+  const PRINT_MARGIN_MM = 40; // 20mm top + 20mm bottom (matches jsPDF margin below)
+  const usablePx = mmToPx(PAGE_HEIGHT_MM - PRINT_MARGIN_MM);
+
+  const sections = Array.from(quarterSectionsEl.querySelectorAll(':scope > .qtr-section'));
+  if(grandTotalBlock.style.display !== 'none') sections.push(grandTotalBlock);
+  sections.push(signatureBlock);
+
+  let used = 0;
+  sections.forEach((el, i) => {
+    const h = el.getBoundingClientRect().height;
+    if(i > 0 && used + h > usablePx){
+      const marker = document.createElement('div');
+      marker.className = 'html2pdf__page-break';
+      el.parentNode.insertBefore(marker, el);
+      used = h;
+    } else {
+      used += h;
+    }
+  });
+}
+
 function generatePdfAndReset(){
   const el = document.getElementById('document');
   const filename = `Vouched_Performa_${emisInput.value.trim()||'school'}_${periodSelect.value}.pdf`;
@@ -845,6 +881,8 @@ function generatePdfAndReset(){
   window.scrollTo(0, 0);
 
   setTimeout(()=>{
+    insertDynamicPageBreaks();
+
     const opt = {
       // top, left, bottom, right — in mm, per requested A4 print margins
       margin: [20, 15, 20, 15],
@@ -863,11 +901,9 @@ function generatePdfAndReset(){
         }
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      // 'css' mode respects break-inside:avoid on quarter/signature/totals
-      // blocks, so sections move to the next page as a whole instead of
-      // splitting mid-table — quarters flow naturally, only breaking when
-      // they genuinely don't fit in the remaining space.
-      pagebreak: { mode: ['css', 'avoid-all'] }
+      // 'legacy' mode is what actually honors our explicit, pre-measured
+      // .html2pdf__page-break markers reliably.
+      pagebreak: { mode: ['legacy'] }
     };
 
     html2pdf().set(opt).from(el).save().then(()=>{
