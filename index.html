@@ -844,7 +844,13 @@ function generatePdfAndReset(){
         scale: 2,
         useCORS: true,
         scrollX: 0,
-        scrollY: 0
+        scrollY: 0,
+        onclone: (clonedDoc) => {
+          // @media print rules don't apply during html2canvas capture
+          // (it renders screen styles), so hide these explicitly here.
+          clonedDoc.querySelectorAll('.remove-row-btn, .row-actions, .add-row-btn')
+            .forEach(el => { el.style.display = 'none'; });
+        }
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
