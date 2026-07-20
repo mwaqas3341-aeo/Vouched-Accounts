@@ -123,22 +123,14 @@
 
   .sheet-wrap{
     max-width:900px;
-    margin:26px auto 0;
+    margin:26px auto 60px;
     padding:0 20px;
   }
-  .download-area{
-    max-width:900px;
-    margin:20px auto 60px;
-    padding:0 20px;
-    display:flex;
-    justify-content:center;
-  }
-  .download-area .btn{padding:12px 32px;font-size:.95rem;}
 
   /* ---------- The document itself (this part is what gets rendered to PDF) ---------- */
   #document{
     background:#fff;
-    padding:8mm 6mm;
+    padding:20mm 15mm;
     border:1px solid #000;
     box-shadow:0 2px 10px rgba(0,0,0,.08);
     box-sizing:border-box;
@@ -430,6 +422,7 @@
     <label for="yearInput">Financial Year</label>
     <input type="text" id="yearInput" placeholder="2025-26" value="2025-26">
   </div>
+  <button class="btn btn-primary" id="downloadBtn">Download PDF</button>
 </div>
 
 <div class="sheet-wrap">
@@ -467,10 +460,6 @@
       </div>
     </div>
   </div>
-</div>
-
-<div class="download-area">
-  <button class="btn btn-primary" id="downloadBtn">Download PDF</button>
 </div>
 
 <!-- Confirmation modal -->
@@ -878,8 +867,12 @@ function generatePdfAndReset(){
 
   setTimeout(()=>{
     const opt = {
-      // top, left, bottom, right — in mm, per requested A4 print margins
-      margin: [20, 15, 20, 15],
+      // Margins are built into #document's own CSS padding (20mm/15mm) —
+      // NOT set here. html2pdf's own `margin` option, combined with
+      // explicit .html2pdf__page-break markers in 'legacy' mode, has a
+      // known bad interaction that double-counts space at each break
+      // and inserts a phantom blank page. Keeping margin at 0 avoids it.
+      margin: 0,
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
