@@ -879,9 +879,11 @@ function generatePdf(){
       html2canvas: {
         scale: 2, useCORS: true, scrollX: 0, scrollY: 0,
         onclone: (clonedDoc) => {
-          // Before cloning, ensure all steps are visible (remove step-hidden)
+          // Reveal all steps
           clonedDoc.querySelectorAll('.step-hidden').forEach(el => el.classList.remove('step-hidden'));
-          
+          // Force reflow so layouts settle before capture
+          clonedDoc.body.offsetHeight;
+
           clonedDoc.querySelectorAll('input').forEach(input => {
             if (input.type === 'text' || input.type === 'number') {
               input.setAttribute('value', input.value);
