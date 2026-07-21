@@ -344,10 +344,7 @@
     margin-top:2px;
   }
 
-  .signature-block,.totals,.grand-total-block{page-break-inside:avoid;break-inside:avoid;}
-table.vouchers{break-inside:auto;page-break-inside:auto;}
-table.vouchers tr{break-inside:avoid;page-break-inside:avoid;}
-.grand-total-block{break-before:page;page-break-before:always;}
+  .avoid-break{page-break-inside:avoid; break-inside:avoid;}
 
   /* ---------- Modal ---------- */
   .modal-overlay{
@@ -384,7 +381,10 @@ table.vouchers tr{break-inside:avoid;page-break-inside:avoid;}
     justify-content:center;
   }
 
-  .html2pdf__page-break{ height:0; display:block; }
+  .page-break { 
+    page-break-before: always !important; 
+    break-before: page !important; 
+  }
 
   @media print{
     .app-bar,.controls,.row-actions,.remove-row-btn,.add-row-btn{display:none;}
@@ -442,7 +442,7 @@ table.vouchers tr{break-inside:avoid;page-break-inside:avoid;}
 
     <div id="quarterSections"><!-- quarter section(s) rendered here by JS --></div>
 
-        <div id="grandTotalBlock" class="grand-total-block avoid-break" style="display:none;">
+    <div id="grandTotalBlock" class="grand-total-block avoid-break page-break" style="display:none;">
       <div class="qtr-section-title" id="grandTotalHeading">Full Year Summary</div>
       <div class="totals">
         <div class="label" id="ftIncomeLabel">Total Income (Full Year)</div><div class="value" id="ftIncome">0</div>
@@ -617,7 +617,6 @@ const aeoSigBlock = document.getElementById('aeoSigBlock');
 const aeoMarkazName = document.getElementById('aeoMarkazName');
 const signatureBlock = document.getElementById('signatureBlock');
 const grandTotalBlock = document.getElementById('grandTotalBlock');
-const grandTotalBreak = document.getElementById('grandTotalBreak');
 
 function fmt(n){
   return (Math.round((n||0)*100)/100).toLocaleString();
@@ -664,7 +663,7 @@ function renderQuarterSection(key, opts){
     </tr>`).join('');
 
   return `
-    <div class="qtr-section avoid-break">
+    <div class="qtr-section avoid-break ${opts.addBreak ? 'page-break' : ''}">
       ${showHeading ? `<div class="qtr-section-title">${opts.heading}</div>` : ''}
 
       <div class="qtr-body">
@@ -750,7 +749,7 @@ function renderAll(){
     docSubtitle.textContent = `Financial Year ${year}`;
 
     quarterSectionsEl.innerHTML = quarterKeys.map((k,i) =>
-      renderQuarterSection(k, {heading:PERIOD_LABELS[k], lockPrev: i>0})
+      renderQuarterSection(k, {heading:PERIOD_LABELS[k], lockPrev: i>0, addBreak: i>0})
     ).join('');
 
     const allQ = quarterKeys.map(k=>quarterTotals(state[k]));
@@ -765,13 +764,11 @@ function renderAll(){
     document.getElementById('ftExpenditure').textContent = fmt(ftExpenditure);
     document.getElementById('ftBalance').textContent = fmt(ftBalance);
     grandTotalBlock.style.display = 'block';
-    grandTotalBreak.style.display = 'block';
   } else {
     docTitle.textContent = "DETAIL OF VOUCHED ACCOUNT";
     docSubtitle.textContent = `${PERIOD_LABELS[period]}, Financial Year ${year}`;
     quarterSectionsEl.innerHTML = renderQuarterSection(period, {heading:null, lockPrev:false});
     grandTotalBlock.style.display = 'none';
-    grandTotalBreak.style.display = 'none';
   }
 
   attachFieldListeners();
@@ -868,12 +865,8 @@ function generatePdfAndReset(){
 
   setTimeout(()=>{
     const opt = {
-      // Margins are built into #document's own CSS padding (20mm/15mm) —
-      // NOT set here. html2pdf's own `margin` option, combined with
-      // explicit .html2pdf__page-break markers in 'legacy' mode, has a
-      // known bad interaction that double-counts space at each break
-      // and inserts a phantom blank page. Keeping margin at 0 avoids it.
-      margin: 0,
+      // 1. Set a uniform 15mm margin for EVERY PDF page top, right, bottom, and left
+      margin: [15, 15, 15, 15], 
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
@@ -882,18 +875,23 @@ function generatePdfAndReset(){
         scrollX: 0,
         scrollY: 0,
         onclone: (clonedDoc) => {
-          // @media print rules don't apply during html2canvas capture
-          // (it renders screen styles), so hide these explicitly here.
+          // Hide non-printable UI buttons
           clonedDoc.querySelectorAll('.remove-row-btn, .row-actions, .add-row-btn')
             .forEach(el => { el.style.display = 'none'; });
+
+          // 2. Strip explicit formatting from the #document wrapper during PDF capture.
+          // By removing border and padding here, html2canvas stops trying to draw them 
+          // across multiple pages. The `margin` option above handles the white space safely.
+          const docEl = clonedDoc.getElementById('document');
+          docEl.style.padding = '0';
+          docEl.style.border = 'none';
+          docEl.style.boxShadow = 'none';
+          docEl.style.maxWidth = 'none';
         }
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      // 'legacy' mode honors the explicit .html2pdf__page-break markers
-      // placed before each subsequent quarter and before the summary —
-      // each quarter is now large (18 rows + its own signature) and
-      // self-contained, so one-quarter-per-page wastes little space.
-      pagebreak: { mode: ['css','legacy'], avoid:['table','tr','.signature-block','.totals','.grand-total-block'] }
+      // 3. Switch to native CSS page-break handling to prevent phantom blank pages
+      pagebreak: { mode: 'css' }
     };
 
     html2pdf().set(opt).from(el).save().then(()=>{
