@@ -110,6 +110,13 @@
     font-size: 1.05rem; /* Larger base font */
   }
 
+  /* Belt-and-braces: guarantee no border/shadow ever reaches the exported PDF,
+     regardless of onclone timing. Toggled on right before html2pdf runs. */
+  body.exporting #document {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
   .doc-header {
     text-align: center; border-bottom: 2px solid #000;
     padding-bottom: 8px; margin-bottom: 12px;
@@ -663,9 +670,18 @@ function generatePdfAndReset(){
 
   window.scrollTo(0, 0);
 
+  // Force-strip the on-screen "card" framing (border/shadow) before capture.
+  // Combined with the onclone cleanup below, this guarantees no side border
+  // survives into the exported PDF, even across multi-page slices.
+  document.body.classList.add('exporting');
+
   setTimeout(() => {
     const opt = {
-      margin: 10, // Narrow 10mm margins for Legal size optimization
+      // 0 here — #document already carries its own 12mm/10mm padding, which acts
+      // as the print margin. Adding a second html2pdf margin on top of the
+      // full-paper-width #document pushed content past the right edge and
+      // clipped it (EMIS code / Amount column cut off).
+      margin: 0,
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
@@ -678,18 +694,24 @@ function generatePdfAndReset(){
           });
           
           clonedDoc.querySelectorAll('.remove-row-btn, .row-actions, .add-row-btn').forEach(n => n.style.display = 'none');
+          clonedDoc.body.classList.add('exporting');
           const docEl = clonedDoc.getElementById('document');
-          docEl.style.padding = '0'; docEl.style.margin = '0'; 
-          docEl.style.border = 'none'; docEl.style.boxShadow = 'none'; 
+          docEl.style.padding = '12mm 10mm';
+          docEl.style.margin = '0';
+          docEl.style.border = 'none';
+          docEl.style.boxShadow = 'none';
           docEl.style.maxWidth = '100%';
         }
       },
       // Configured explicitly for Legal Paper Size in Portrait mode
       jsPDF: { unit: 'mm', format: 'legal', orientation: 'portrait' },
-      pagebreak: { mode: 'css' }
+      // Explicit selector (not just relying on auto CSS detection) makes the
+      // Q2/Q3/Q4 page break fire reliably.
+      pagebreak: { mode: ['css', 'legacy'], before: '.page-break' }
     };
 
     html2pdf().set(opt).from(el).save().then(() => {
+      document.body.classList.remove('exporting');
       state = { Q1: blankQuarter(), Q2: blankQuarter(), Q3: blankQuarter(), Q4: blankQuarter() };
       emisInput.value = ''; resetHeaders(); periodSelect.value = 'Q1'; renderStructure();
     });
