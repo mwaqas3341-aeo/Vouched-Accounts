@@ -684,15 +684,27 @@ const PAGE_HEIGHT_PX = 1344; // Legal page height at 96 CSS px/inch
 function insertPageBreakSpacersIn(doc){
   const docEl = doc.getElementById('document');
   if (!docEl) return;
+
+  // Remove any existing spacers
   docEl.querySelectorAll('.pdf-spacer').forEach(n => n.remove());
-  const docTop = docEl.getBoundingClientRect().top;
+
+  const docRect = docEl.getBoundingClientRect();
+  const docTop = docRect.top;
+  // Total page height in CSS pixels (Legal = 14in = 1344px at 96dpi)
+  const pageHeightPx = 1344;
+
+  // Get the actual top padding of the document in pixels
+  const style = getComputedStyle(docEl);
+  const topPaddingPx = parseFloat(style.paddingTop) || 0;
 
   docEl.querySelectorAll('.page-break').forEach(el => {
     const elTop = el.getBoundingClientRect().top;
-    const relativeTop = elTop - docTop;
-    const remainder = relativeTop % PAGE_HEIGHT_PX;
-    if (remainder > 2) { // skip if it already happens to land at a page top
-      const gap = PAGE_HEIGHT_PX - remainder;
+    const relativeTop = elTop - docTop;               // distance from document top
+    const adjustedTop = relativeTop - topPaddingPx;   // remove the top‑padding offset
+
+    const remainder = adjustedTop % pageHeightPx;
+    if (remainder > 2) {  // tolerance for rounding
+      const gap = pageHeightPx - remainder;
       const spacer = doc.createElement('div');
       spacer.className = 'pdf-spacer';
       spacer.style.height = gap + 'px';
@@ -700,7 +712,6 @@ function insertPageBreakSpacersIn(doc){
     }
   });
 }
-
 function generatePdf(){
   const el = document.getElementById('document');
   const filename = `Vouched_Performa_${emisInput.value.trim()||'school'}_${periodSelect.value}.pdf`;
