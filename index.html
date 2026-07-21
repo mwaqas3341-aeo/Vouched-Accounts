@@ -445,8 +445,9 @@ function renderQuarterSectionHTML(key, opts){
       <td class="rm"><button class="btn-small btn-ghost remove-row-btn" data-q="${key}" data-index="${i}" title="Remove row">&times;</button></td>
     </tr>`).join('');
 
+  // NOTE: avoid-break has been removed from qtr-section so it flows naturally across pages
   return `
-    <div class="qtr-section avoid-break ${opts.addBreak ? 'page-break' : ''}">
+    <div class="qtr-section ${opts.addBreak ? 'page-break' : ''}">
       ${opts.heading ? `<div class="qtr-section-title">${opts.heading}</div>` : ''}
       <div class="qtr-body">
         <div class="income-col">
