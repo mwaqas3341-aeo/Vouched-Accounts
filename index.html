@@ -1,3 +1,11 @@
+The root cause of the missing lines, scrambled layouts, and blank spaces in your generated PDFs is how html2canvas (the engine inside html2pdf) processes modern CSS.
+Here is exactly what was happening:
+ 1. **Missing Borders & Scrambled Tables:** html2canvas has a known bug where it completely fails to render display: grid; layouts accurately. It drops borders and shifts columns randomly.
+ 2. **Blank Pages & Empty Spaces:** By explicitly forcing page breaks (page-break-before: always) before every quarter and before the summary block, the code was forcing elements onto new pages even if they could fit naturally. This left massive empty white spaces at the bottom of pages and generated a completely blank final page for the standalone summary.
+ 3. **Missing Input Text:** html2canvas sometimes fails to capture text typed into <input> fields unless that text is mapped to the physical HTML value="..." attribute right before printing.
+I have completely rewritten the core CSS to replace all CSS Grid structures with highly stable CSS Flexbox and table-layout: fixed properties. I also removed the forced page breaks, allowing the engine to naturally flow the tables onto the next page *only* if they run out of space.
+Here is the fully fixed, copy-and-paste ready index.html:
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -63,19 +71,12 @@
   }
   .field { display: flex; flex-direction: column; gap: 5px; min-width: 170px; }
   .field label {
-    font-size: .72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: var(--muted);
+    font-size: .72rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--muted);
   }
   .field input, .field select {
-    font-family: inherit;
-    font-size: .92rem;
-    padding: 9px 10px;
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    background: #fff;
+    font-family: inherit; font-size: .92rem; padding: 9px 10px;
+    border: 1px solid var(--line); border-radius: 4px; background: #fff;
   }
   .field input:read-only { background: #f1efe6; color: var(--muted); }
   
@@ -131,84 +132,97 @@
   }
   .school-line b { color: #000; }
 
+  /* Removed explicit page breaks. Added avoid-break class to keep sections intact */
+  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
   .qtr-section { margin-bottom: 22px; }
+  
   .qtr-section-title {
     font-family: 'Noto Serif', serif; font-weight: 600; font-size: .95rem;
     color: #000; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px;
   }
 
+  /* Switched entirely to Flexbox - html2canvas does not render CSS Grid properly */
   .qtr-body {
-    display: grid; grid-template-columns: 34% 66%; gap: 0;
-    border: 1px solid #000; margin-bottom: 8px;
+    display: flex;
+    border: 1px solid #000; 
+    margin-bottom: 8px;
   }
-  .income-col { border-right: 1px solid #000; display: flex; flex-direction: column; }
+  .income-col { 
+    width: 35%; 
+    border-right: 1px solid #000; 
+    display: flex; 
+    flex-direction: column; 
+  }
   .income-col .income-header {
-    background: #fff; font-size: .72rem; text-transform: uppercase;
-    letter-spacing: .04em; padding: 8px; border-bottom: 1px solid #000;
+    background: #fff; font-size: .72rem; padding: 8px; border-bottom: 1px solid #000;
   }
   .income-row {
-    display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #000;
-    min-height: 22px; flex: 1 1 22px;
+    display: flex; border-bottom: 1px solid #000; min-height: 22px; flex: 1 1 auto; align-items: stretch;
   }
   .income-row:last-child { border-bottom: none; }
   .income-row .il {
-    display: flex; align-items: center; padding: 0 8px; font-size: .82rem;
+    width: 55%; display: flex; align-items: center; padding: 0 8px; font-size: .82rem;
     font-weight: 600; color: var(--muted); border-right: 1px solid #000; line-height: 1.15;
   }
-  .income-row .iv { display: flex; align-items: center; padding: 0 6px; height: 100%; }
+  .income-row .iv { width: 45%; display: flex; align-items: center; padding: 0 6px; }
   .income-row .iv input {
     width: 100%; height: 100%; border: none; background: transparent;
-    font-family: inherit; font-size: .85rem; font-weight: 600; text-align: center; padding: 0 4px;
+    font-family: inherit; font-size: .85rem; font-weight: 600; text-align: center; padding: 0; margin: 0;
   }
   .income-row .iv input.locked { color: var(--muted); pointer-events: none; }
   .income-row .iv input:focus { outline: 1px solid #000; }
   
   .income-row.total { background: #fff; border-top: 1px solid #000; flex: 0 0 26px; }
-  .income-row.total .il { color: #000; font-weight: 700; border-right: 1px solid #000; }
+  .income-row.total .il { color: #000; font-weight: 700; }
   .income-row.total .iv { justify-content: center; font-weight: 700; color: #000; }
 
-  .voucher-col table.vouchers { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+  /* Vouchers Table Setup - table-layout: fixed enforces border rendering in Canvas */
+  .voucher-col { width: 65%; display: flex; flex-direction: column; }
+  table.vouchers { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 0; }
+  table.vouchers th, table.vouchers td { border: 1px solid #000; }
   table.vouchers th {
     font-size: .72rem; text-transform: uppercase; padding: 8px;
-    text-align: left; border: 1px solid #000; font-weight: 700; color: #000;
+    text-align: left; font-weight: 700; color: #000;
   }
-  table.vouchers td { height: 22px; border: 1px solid #000; padding: 1px 7px; }
-  table.vouchers tr { page-break-inside: avoid; break-inside: avoid; }
+  table.vouchers td { height: 22px; padding: 1px 7px; }
+  table.vouchers th:nth-child(1), table.vouchers td.sr { width: 36px; text-align: center; color: var(--muted); font-size: .78rem; }
+  table.vouchers th:nth-child(3), table.vouchers td.amt { width: 110px; }
+  table.vouchers th:nth-child(4), table.vouchers td.rm { width: 30px; text-align: center; }
   
   table.vouchers input {
     width: 100%; border: none; background: transparent; font-family: inherit;
-    font-size: .78rem; padding: 1px 2px;
+    font-size: .78rem; padding: 0; margin: 0;
   }
   table.vouchers input:focus { outline: 1px solid #000; }
-  table.vouchers td.sr { width: 36px; text-align: center; color: var(--muted); font-size: .78rem; }
-  table.vouchers td.amt { width: 110px; }
-  table.vouchers td.rm { width: 30px; text-align: center; }
-
   tr.expenditure-row td { font-weight: 700; color: #000; height: 22px; }
   .row-actions { margin-bottom: 14px; }
 
+  /* Wrap-based Flexbox for solid totals rows */
   .totals {
-    display: grid; grid-template-columns: 1fr 110px; font-size: .88rem;
+    display: flex; flex-wrap: wrap; font-size: .88rem;
     width: 100%; border: 1px solid #000; background: #fff;
   }
-  .totals > div { padding: 7px 12px; border-bottom: 1px solid #000; }
-  .totals > div:nth-last-child(-n+2) { border-bottom: none; }
-  .totals .label { color: var(--muted); border-right: 1px solid #000; }
-  .totals .value { font-weight: 600; text-align: right; }
-  .totals .grand .value { color: #000; font-size: 1rem; }
+  .totals .label { 
+    width: calc(100% - 110px); color: var(--muted); border-right: 1px solid #000; 
+    border-bottom: 1px solid #000; padding: 7px 12px; text-align: right;
+  }
+  .totals .value { 
+    width: 110px; font-weight: 600; text-align: right; 
+    border-bottom: 1px solid #000; padding: 7px 12px;
+  }
+  .totals .label.grand, .totals .value.grand { border-bottom: none; color: #000; }
+  .totals .value.grand { font-size: 1rem; }
 
   .grand-total-block { margin-top: 8px; border-top: 2px solid #000; padding-top: 14px; }
 
   .signature-block {
     margin-top: 18px; display: flex; justify-content: space-between;
-    align-items: flex-end; page-break-inside: avoid; break-inside: avoid;
+    align-items: flex-end;
   }
   .signature-block.single { justify-content: flex-end; }
   .signature-block .sig { text-align: center; min-width: 220px; }
   .signature-block .sig-line { border-top: 1px solid var(--ink); padding-top: 6px; font-size: .85rem; font-weight: 600; }
   .signature-block .sig-school { font-size: .8rem; color: var(--ink); font-weight: 700; margin-top: 2px; }
-
-  .page-break { page-break-before: always !important; break-before: page !important; }
 
   /* ---------- Modal ---------- */
   .modal-overlay {
@@ -270,14 +284,14 @@
       <div class="sub" id="docSubtitle">1st Quarter, Financial Year 2025-26</div>
     </div>
 
-    <div class="school-line">
+    <div class="school-line avoid-break">
       <div>School Name: <b id="docSchoolName">&mdash;</b></div>
       <div>EMIS Code: <b id="docEmis">&mdash;</b></div>
     </div>
 
     <div id="quarterSections"></div>
 
-    <div id="grandTotalBlock" class="grand-total-block page-break" style="display:none;">
+    <div id="grandTotalBlock" class="grand-total-block avoid-break" style="display:none;">
       <div class="qtr-section-title" id="grandTotalHeading">Full Year Summary</div>
       <div class="totals">
         <div class="label" id="ftIncomeLabel">Total Income (Full Year)</div><div class="value" id="ftIncome">0</div>
@@ -286,7 +300,7 @@
       </div>
     </div>
 
-    <div class="signature-block" id="signatureBlock">
+    <div class="signature-block avoid-break" id="signatureBlock">
       <div class="sig" id="aeoSigBlock">
         <div class="sig-line">Signature Assistant Education Officer</div>
         <div class="sig-school" id="aeoMarkazName">&nbsp;</div>
@@ -438,7 +452,7 @@ function updateDocHeaders() {
 function renderQuarterSectionHTML(key, opts){
   const q = state[key];
   let rows = q.vouchers.map((v,i)=>`
-    <tr>
+    <tr class="avoid-break">
       <td class="sr">${i+1}</td>
       <td><input type="text" data-q="${key}" data-index="${i}" data-field="detail" value="${v.detail.replace(/"/g,'&quot;')}" placeholder="Detail of voucher"></td>
       <td class="amt"><input type="number" step="0.01" data-q="${key}" data-index="${i}" data-field="amount" value="${v.amount || ''}" placeholder="0"></td>
@@ -446,7 +460,7 @@ function renderQuarterSectionHTML(key, opts){
     </tr>`).join('');
 
   return `
-    <div class="qtr-section ${opts.addBreak ? 'page-break' : ''}">
+    <div class="qtr-section avoid-break">
       ${opts.heading ? `<div class="qtr-section-title">${opts.heading}</div>` : ''}
       <div class="qtr-body">
         <div class="income-col">
@@ -477,7 +491,7 @@ function renderQuarterSectionHTML(key, opts){
             <thead><tr><th>Sr.</th><th>Detail of Vouchers</th><th>Amount</th><th></th></tr></thead>
             <tbody>
               ${rows}
-              <tr class="expenditure-row">
+              <tr class="expenditure-row avoid-break">
                 <td colspan="2">Total Expenditure</td>
                 <td class="amt" id="exp-row-${key}">0</td>
                 <td></td>
@@ -487,7 +501,7 @@ function renderQuarterSectionHTML(key, opts){
         </div>
       </div>
       <div class="row-actions"><button class="btn btn-small btn-ghost add-row-btn" data-q="${key}">+ Add Bill Row</button></div>
-      <div class="totals">
+      <div class="totals avoid-break">
         <div class="label">Total Income</div><div class="value" id="inc-btm-${key}">0</div>
         <div class="label">Total Expenditure</div><div class="value" id="exp-btm-${key}">0</div>
         <div class="label grand">Remaining Balance</div><div class="value grand" id="bal-btm-${key}">0</div>
@@ -502,7 +516,7 @@ function getSignatureHTML() {
   const sLine = schoolName ? schoolName.replace(/</g,'&lt;') : '&nbsp;';
   const mLine = markazName ? markazName.replace(/</g,'&lt;') : '';
   return `
-    <div class="signature-block ${showAeo ? '' : 'single'}">
+    <div class="signature-block avoid-break ${showAeo ? '' : 'single'}">
       ${showAeo ? `<div class="sig"><div class="sig-line">Signature Assistant Education Officer</div><div class="sig-school">${mLine}</div></div>` : ''}
       <div class="sig"><div class="sig-line">Signature Head Master</div><div class="sig-school">${sLine}</div></div>
     </div>`;
@@ -515,7 +529,7 @@ function renderStructure() {
   const grandTotalBlock = document.getElementById('grandTotalBlock');
 
   quarterSectionsEl.innerHTML = keys.map((k, i) => 
-    renderQuarterSectionHTML(k, { heading: keys.length > 1 ? PERIOD_LABELS[k] : null, lockPrev: i > 0, addBreak: i > 0 })
+    renderQuarterSectionHTML(k, { heading: keys.length > 1 ? PERIOD_LABELS[k] : null, lockPrev: i > 0 })
   ).join('');
 
   if(keys.length > 1) {
@@ -581,12 +595,10 @@ function updateMathCalculations() {
     const rem = totalInc - totalExp;
     prevRemaining = rem;
 
-    // Strict Accounting logic for multi-quarter summaries to prevent balance double-counting
     if (i === 0) trueFtIncome += (parseFloat(q.prevBalance) || 0);
     trueFtIncome += (parseFloat(q.bankProfit) || 0) + (parseFloat(q.quarterIncome) || 0) + (parseFloat(q.otherIncome) || 0);
     trueFtExp += totalExp;
 
-    // Direct DOM text updates (Preserves focus)
     document.getElementById(`inc-top-${k}`).textContent = fmt(totalInc);
     document.getElementById(`exp-row-${k}`).textContent = fmt(totalExp);
     document.getElementById(`inc-btm-${k}`).textContent = fmt(totalInc);
@@ -663,15 +675,26 @@ function generatePdfAndReset(){
 
   setTimeout(() => {
     const opt = {
-      margin: [15, 15, 15, 15], 
+      margin: 10, // Applying a uniform natural 10mm print margin around the document
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 2, useCORS: true, scrollX: 0, scrollY: 0,
         onclone: (clonedDoc) => {
+          // Explicitly map <input> contents to 'value' attributes so Canvas can render them
+          clonedDoc.querySelectorAll('input').forEach(input => {
+            if (input.type === 'text' || input.type === 'number') {
+              input.setAttribute('value', input.value);
+            }
+          });
+          
           clonedDoc.querySelectorAll('.remove-row-btn, .row-actions, .add-row-btn').forEach(n => n.style.display = 'none');
+          
+          // Strip physical UI restrictions to let the canvas capture properly
           const docEl = clonedDoc.getElementById('document');
-          docEl.style.padding = '0'; docEl.style.border = 'none'; docEl.style.boxShadow = 'none'; docEl.style.maxWidth = 'none';
+          docEl.style.padding = '0'; docEl.style.margin = '0'; 
+          docEl.style.border = 'none'; docEl.style.boxShadow = 'none'; 
+          docEl.style.maxWidth = '100%';
         }
       },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -691,3 +714,5 @@ renderStructure();
 
 </body>
 </html>
+
+```
