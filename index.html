@@ -139,7 +139,29 @@
      JS-inserted .pdf-spacer elements right before export (see insertPageBreakSpacersIn). */
   .pdf-spacer { width: 100%; flex: 0 0 auto; }
 
+  /* ---------- Step navigation ---------- */
+  .step-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0 10px;
+    padding: 12px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .step-controls .step-indicator {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .step-controls .btn-group {
+    display: flex;
+    gap: 12px;
+  }
+
+  /* ---------- Quarter sections (step hidden) ---------- */
   .qtr-section { margin-bottom: 25px; }
+  .step-hidden { display: none !important; }
   
   .qtr-section-title {
     font-family: 'Noto Serif', serif; font-weight: 700; font-size: 1.2rem;
@@ -241,7 +263,7 @@
     min-height: 1.4rem;
   }
 
-  /* ---------- Modal ---------- */
+  /* ---------- Modals ---------- */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(20,20,15,.55);
     display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
@@ -253,7 +275,8 @@
   .modal .modal-actions { display: flex; gap: 10px; justify-content: center; }
 
   @media print {
-    .app-bar, .controls, .row-actions, .remove-row-btn, .add-row-btn { display: none !important; }
+    .app-bar, .controls, .row-actions, .remove-row-btn, .add-row-btn,
+    .step-controls { display: none !important; }
   }
 </style>
 </head>
@@ -309,20 +332,29 @@
 
     <div id="quarterSections"></div>
 
-    <div id="grandTotalBlock" class="grand-total-block page-break" style="display:none;">
+    <!-- Step navigation -->
+    <div class="step-controls" id="stepControls">
+      <div class="step-indicator" id="stepIndicator">Step 1 of 1</div>
+      <div class="btn-group">
+        <button class="btn btn-ghost btn-small" id="prevStepBtn" disabled>Previous</button>
+        <button class="btn btn-primary btn-small" id="nextStepBtn">Next</button>
+      </div>
+    </div>
+
+    <!-- Grand total block (will be shown as final step) -->
+    <div id="grandTotalBlock" class="grand-total-block page-break step-hidden" style="display:block;">
       <div class="qtr-section-title" id="grandTotalHeading">Full Year Summary</div>
       <div class="totals">
         <div class="label" id="ftIncomeLabel">Total Income (Full Year)</div><div class="value" id="ftIncome">0</div>
         <div class="label" id="ftExpenditureLabel">Total Expenditure (Full Year)</div><div class="value" id="ftExpenditure">0</div>
         <div class="label grand">Final Remaining Balance</div><div class="value grand" id="ftBalance">0</div>
       </div>
-      <!-- Summary Signature Block -->
       <div class="dynamic-sig-container"></div>
     </div>
   </div>
 </div>
 
-<!-- Confirmation modal -->
+<!-- Confirmation modals -->
 <div class="modal-overlay" id="confirmModal">
   <div class="modal">
     <h3>Verify before download</h3>
@@ -330,6 +362,17 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" id="modalCancel">Go Back</button>
       <button class="btn btn-primary" id="modalConfirm">Confirm &amp; Download</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="stepConfirmModal">
+  <div class="modal">
+    <h3>Proceed to next quarter?</h3>
+    <p>Make sure all entries for this quarter are correct before moving on.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="stepModalCancel">Stay</button>
+      <button class="btn btn-primary" id="stepModalConfirm">Proceed</button>
     </div>
   </div>
 </div>
@@ -369,6 +412,7 @@ function blankQuarter(){
   return { prevBalance: 0, bankProfit: 0, quarterIncome: 0, otherIncome: 0, vouchers: Array.from({length: 18}, () => ({detail:'', amount:0})) };
 }
 let state = { Q1: blankQuarter(), Q2: blankQuarter(), Q3: blankQuarter(), Q4: blankQuarter() };
+let currentStep = 0; // 0‑based index among displayed steps (quarters + summary if any)
 
 function fmt(n) { return (Math.round((n||0)*100)/100).toLocaleString(); }
 
@@ -423,8 +467,15 @@ async function lookupSchool(code){
 const periodSelect = document.getElementById('periodSelect');
 const yearInput = document.getElementById('yearInput');
 const quarterSectionsEl = document.getElementById('quarterSections');
+const stepControls = document.getElementById('stepControls');
+const prevBtn = document.getElementById('prevStepBtn');
+const nextBtn = document.getElementById('nextStepBtn');
+const stepIndicator = document.getElementById('stepIndicator');
 
-periodSelect.addEventListener('change', renderStructure);
+periodSelect.addEventListener('change', () => {
+  currentStep = 0;
+  renderStructure();
+});
 yearInput.addEventListener('input', updateDocHeaders);
 
 function updateDocHeaders() {
@@ -459,7 +510,7 @@ function renderQuarterSectionHTML(key, opts){
     </tr>`).join('');
 
   return `
-    <div class="qtr-section ${opts.addBreak ? 'page-break' : ''}">
+    <div class="qtr-section ${opts.addBreak ? 'page-break' : ''} step-${opts.stepIndex}">
       ${opts.heading ? `<div class="qtr-section-title">${opts.heading}</div>` : ''}
       <div class="qtr-body">
         <div class="income-col">
@@ -506,7 +557,6 @@ function renderQuarterSectionHTML(key, opts){
         <div class="label grand">Remaining Balance</div><div class="value grand" id="bal-btm-${key}">0</div>
       </div>
       <div class="balance-error" id="err-msg-${key}"></div>
-      <!-- Quarter specific Signature Block injected here -->
       <div class="dynamic-sig-container"></div>
     </div>`;
 }
@@ -527,22 +577,61 @@ function renderStructure() {
   const keys = periodQuarterKeys(period);
   const grandTotalBlock = document.getElementById('grandTotalBlock');
 
-  // i > 0 explicitly adds the .page-break class to ensure Q2, Q3, Q4 start on a brand new page
-  quarterSectionsEl.innerHTML = keys.map((k, i) => 
-    renderQuarterSectionHTML(k, { heading: keys.length > 1 ? PERIOD_LABELS[k] : null, lockPrev: i > 0, addBreak: i > 0 })
+  // Determine steps: quarters + summary if multi-quarter
+  const hasSummary = keys.length > 1;
+  const totalSteps = keys.length + (hasSummary ? 1 : 0);
+  
+  // Build quarter HTML with step indices
+  let html = keys.map((k, i) => 
+    renderQuarterSectionHTML(k, { 
+      heading: keys.length > 1 ? PERIOD_LABELS[k] : null, 
+      lockPrev: i > 0, 
+      addBreak: i > 0,
+      stepIndex: i 
+    })
   ).join('');
 
-  if(keys.length > 1) {
+  // Insert into DOM
+  quarterSectionsEl.innerHTML = html;
+
+  // Configure grand total block (summary) as final step
+  if (hasSummary) {
     document.getElementById('grandTotalHeading').textContent = period === 'FULL' ? 'Full Year Summary' : 'Combined Summary';
     document.getElementById('ftIncomeLabel').textContent = `Total Income (${period === 'FULL' ? 'Full Year' : 'Combined'})`;
     document.getElementById('ftExpenditureLabel').textContent = `Total Expenditure (${period === 'FULL' ? 'Full Year' : 'Combined'})`;
     grandTotalBlock.style.display = 'block';
+    grandTotalBlock.className = 'grand-total-block page-break step-' + (keys.length);
   } else {
     grandTotalBlock.style.display = 'none';
   }
-  
+
+  // Update step visibility and controls
+  updateStepVisibility(totalSteps);
   updateDocHeaders();
   updateMathCalculations();
+}
+
+function updateStepVisibility(totalSteps) {
+  // Hide all steps except current
+  document.querySelectorAll('.qtr-section').forEach(el => {
+    const step = parseInt(el.className.match(/step-(\d+)/)?.[1] ?? -1);
+    el.classList.toggle('step-hidden', step !== currentStep);
+  });
+  const summary = document.getElementById('grandTotalBlock');
+  const summaryStep = parseInt(summary.className.match(/step-(\d+)/)?.[1] ?? -1);
+  summary.classList.toggle('step-hidden', summaryStep !== currentStep);
+
+  // Update navigation buttons and indicator
+  const hasSummary = summaryStep >= 0;
+  const totalSteps = hasSummary ? summaryStep + 1 : document.querySelectorAll('.qtr-section').length;
+  stepIndicator.textContent = `Step ${currentStep + 1} of ${totalSteps}`;
+  prevBtn.disabled = currentStep === 0;
+  nextBtn.disabled = currentStep === totalSteps - 1;
+  if (currentStep === totalSteps - 1) {
+    nextBtn.textContent = 'Finish';
+  } else {
+    nextBtn.textContent = 'Next';
+  }
 }
 
 /* ---------------- Event Delegation & Math Engine ---------------- */
@@ -626,13 +715,76 @@ function updateMathCalculations() {
   }
 }
 
+/* ---------------- Step Navigation ---------------- */
+prevBtn.addEventListener('click', () => {
+  if (currentStep > 0) {
+    currentStep--;
+    updateStepVisibility();
+  }
+});
+
+nextBtn.addEventListener('click', () => {
+  const keys = periodQuarterKeys(periodSelect.value);
+  const hasSummary = keys.length > 1;
+  const totalSteps = keys.length + (hasSummary ? 1 : 0);
+
+  // If on last step, maybe trigger download or just disable
+  if (currentStep === totalSteps - 1) {
+    // Last step – maybe trigger download? But we have separate download button.
+    // We'll just do nothing or show a message.
+    alert("You are on the final step. Use the Download PDF button to export.");
+    return;
+  }
+
+  // Validate current quarter before moving forward
+  const quarterKey = keys[currentStep];
+  if (!quarterKey) {
+    // Should not happen
+    return;
+  }
+
+  const q = state[quarterKey];
+  // Check for missing details/amounts
+  const incomplete = [];
+  q.vouchers.forEach((v, i) => {
+    const hasDetail = v.detail && v.detail.trim() !== '';
+    const hasAmount = parseFloat(v.amount) > 0;
+    if (hasDetail && !hasAmount) incomplete.push(`Row ${i+1}: missing amount`);
+    if (hasAmount && !hasDetail) incomplete.push(`Row ${i+1}: missing detail`);
+  });
+  if (incomplete.length) {
+    alert(`Cannot proceed – complete these voucher rows:\n\n${incomplete.join('\n')}`);
+    return;
+  }
+
+  // Check negative balance
+  const inc = (parseFloat(q.prevBalance)||0) + (parseFloat(q.bankProfit)||0) + (parseFloat(q.quarterIncome)||0) + (parseFloat(q.otherIncome)||0);
+  const exp = q.vouchers.reduce((s, v) => s + (parseFloat(v.amount)||0), 0);
+  if (inc - exp < 0) {
+    alert(`Cannot proceed: expenditure exceeds income in ${PERIOD_LABELS[quarterKey]}.`);
+    return;
+  }
+
+  // If valid, show confirmation modal
+  document.getElementById('stepConfirmModal').classList.add('show');
+});
+
+document.getElementById('stepModalCancel').addEventListener('click', () => {
+  document.getElementById('stepConfirmModal').classList.remove('show');
+});
+document.getElementById('stepModalConfirm').addEventListener('click', () => {
+  document.getElementById('stepConfirmModal').classList.remove('show');
+  currentStep++;
+  updateStepVisibility();
+});
+
 /* ---------------- Download Flow ---------------- */
 const confirmModal = document.getElementById('confirmModal');
 
 document.getElementById('downloadBtn').addEventListener('click', () => {
+  // Validate all quarters (optional)
   const keys = periodQuarterKeys(periodSelect.value);
   const incomplete = [];
-  
   keys.forEach(k => {
     state[k].vouchers.forEach((v, i) => {
       const hasDetail = v.detail && v.detail.trim() !== '';
@@ -641,7 +793,6 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
       if (hasAmount && !hasDetail) incomplete.push(`${PERIOD_LABELS[k]}, row ${i+1}: missing detail`);
     });
   });
-
   if (incomplete.length) {
     alert(`Cannot proceed — complete these voucher rows:\n\n${incomplete.join('\n')}`);
     return;
@@ -653,7 +804,6 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
     const exp = q.vouchers.reduce((s, v) => s + (parseFloat(v.amount)||0), 0);
     return (inc - exp) < 0;
   });
-
   if (negative.length) {
     alert(`Cannot proceed: expenditure exceeds income in ${negative.map(k=>PERIOD_LABELS[k]).join(', ')}.`);
     return;
@@ -679,7 +829,8 @@ document.getElementById('modalConfirm').addEventListener('click', () => {
    remaining height so that element is always pushed to the top of the
    next physical page — using the same page-height math html2pdf itself
    uses when slicing (Legal = 355.6mm = exactly 14in = 1344 CSS px). 
-   We now also subtract the top padding of the document to align correctly. */
+   We now also subtract the top padding of the document (converted from mm to px)
+   to align correctly. */
 const PAGE_HEIGHT_PX = 1344; // Legal page height at 96 CSS px/inch
 
 function insertPageBreakSpacersIn(doc){
@@ -693,14 +844,15 @@ function insertPageBreakSpacersIn(doc){
   const docTop = docRect.top;
   const pageHeightPx = 1344;
 
-  // Get the actual top padding of the document in pixels
+  // Get the actual top padding of the document in pixels (convert from mm)
   const style = getComputedStyle(docEl);
-  const topPaddingPx = parseFloat(style.paddingTop) || 0;
+  const paddingTopStr = style.paddingTop; // e.g. "12mm"
+  const paddingTopPx = parseFloat(paddingTopStr) * 96 / 25.4; // convert mm to px
 
   docEl.querySelectorAll('.page-break').forEach(el => {
     const elTop = el.getBoundingClientRect().top;
     const relativeTop = elTop - docTop;               // distance from document top
-    const adjustedTop = relativeTop - topPaddingPx;   // remove the top‑padding offset
+    const adjustedTop = relativeTop - paddingTopPx;   // remove the top‑padding offset
 
     const remainder = adjustedTop % pageHeightPx;
     if (remainder > 2) {  // tolerance for rounding
@@ -721,16 +873,15 @@ function generatePdf(){
 
   setTimeout(() => {
     const opt = {
-      // 0 here — #document already carries its own 12mm/10mm padding, which acts
-      // as the print margin. Adding a second html2pdf margin on top of the
-      // full-paper-width #document pushed content past the right edge and
-      // clipped it (EMIS code / Amount column cut off).
       margin: 0,
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 2, useCORS: true, scrollX: 0, scrollY: 0,
         onclone: (clonedDoc) => {
+          // Before cloning, ensure all steps are visible (remove step-hidden)
+          clonedDoc.querySelectorAll('.step-hidden').forEach(el => el.classList.remove('step-hidden'));
+          
           clonedDoc.querySelectorAll('input').forEach(input => {
             if (input.type === 'text' || input.type === 'number') {
               input.setAttribute('value', input.value);
@@ -763,11 +914,7 @@ function generatePdf(){
           insertPageBreakSpacersIn(clonedDoc);
         }
       },
-      // Configured explicitly for Legal Paper Size in Portrait mode
       jsPDF: { unit: 'mm', format: 'legal', orientation: 'portrait' }
-      // No 'pagebreak' option here on purpose — the manual spacers above already
-      // guarantee correct breaks, and leaving html2pdf's own auto-detection
-      // active risks inserting a second, conflicting break (blank pages).
     };
 
     html2pdf().set(opt).from(el).save();
@@ -778,7 +925,7 @@ function generatePdf(){
 document.getElementById('clearFormBtn').addEventListener('click', () => {
   if (!confirm('Clear the whole form? Anything entered will be lost.')) return;
   state = { Q1: blankQuarter(), Q2: blankQuarter(), Q3: blankQuarter(), Q4: blankQuarter() };
-  emisInput.value = ''; resetHeaders(); periodSelect.value = 'Q1'; renderStructure();
+  emisInput.value = ''; resetHeaders(); periodSelect.value = 'Q1'; currentStep = 0; renderStructure();
 });
 
 /* ---------------- Init ---------------- */
