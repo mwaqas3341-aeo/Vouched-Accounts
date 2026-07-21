@@ -1,11 +1,3 @@
-The root cause of the missing lines, scrambled layouts, and blank spaces in your generated PDFs is how html2canvas (the engine inside html2pdf) processes modern CSS.
-Here is exactly what was happening:
- 1. **Missing Borders & Scrambled Tables:** html2canvas has a known bug where it completely fails to render display: grid; layouts accurately. It drops borders and shifts columns randomly.
- 2. **Blank Pages & Empty Spaces:** By explicitly forcing page breaks (page-break-before: always) before every quarter and before the summary block, the code was forcing elements onto new pages even if they could fit naturally. This left massive empty white spaces at the bottom of pages and generated a completely blank final page for the standalone summary.
- 3. **Missing Input Text:** html2canvas sometimes fails to capture text typed into <input> fields unless that text is mapped to the physical HTML value="..." attribute right before printing.
-I have completely rewritten the core CSS to replace all CSS Grid structures with highly stable CSS Flexbox and table-layout: fixed properties. I also removed the forced page breaks, allowing the engine to naturally flow the tables onto the next page *only* if they run out of space.
-Here is the fully fixed, copy-and-paste ready index.html:
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -714,5 +706,3 @@ renderStructure();
 
 </body>
 </html>
-
-```
