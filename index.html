@@ -124,8 +124,9 @@
   }
   .school-line b { color: #000; }
 
-  /* Removed explicit page breaks. Added avoid-break class to keep sections intact */
   .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+  .page-break { page-break-before: always !important; break-before: page !important; }
+
   .qtr-section { margin-bottom: 22px; }
   
   .qtr-section-title {
@@ -133,7 +134,7 @@
     color: #000; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px;
   }
 
-  /* Switched entirely to Flexbox - html2canvas does not render CSS Grid properly */
+  /* Flexbox logic for structural integrity in html2canvas */
   .qtr-body {
     display: flex;
     border: 1px solid #000; 
@@ -168,7 +169,7 @@
   .income-row.total .il { color: #000; font-weight: 700; }
   .income-row.total .iv { justify-content: center; font-weight: 700; color: #000; }
 
-  /* Vouchers Table Setup - table-layout: fixed enforces border rendering in Canvas */
+  /* Vouchers Table Setup */
   .voucher-col { width: 65%; display: flex; flex-direction: column; }
   table.vouchers { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 0; }
   table.vouchers th, table.vouchers td { border: 1px solid #000; }
@@ -189,7 +190,7 @@
   tr.expenditure-row td { font-weight: 700; color: #000; height: 22px; }
   .row-actions { margin-bottom: 14px; }
 
-  /* Wrap-based Flexbox for solid totals rows */
+  /* Totals styling */
   .totals {
     display: flex; flex-wrap: wrap; font-size: .88rem;
     width: 100%; border: 1px solid #000; background: #fff;
@@ -205,16 +206,27 @@
   .totals .label.grand, .totals .value.grand { border-bottom: none; color: #000; }
   .totals .value.grand { font-size: 1rem; }
 
-  .grand-total-block { margin-top: 8px; border-top: 2px solid #000; padding-top: 14px; }
+  .grand-total-block { padding-top: 0px; }
 
+  /* Redesigned Signature block to add massive signing space and strict positioning */
   .signature-block {
-    margin-top: 18px; display: flex; justify-content: space-between;
+    margin-top: 65px; 
+    display: flex; justify-content: space-between;
     align-items: flex-end;
+    page-break-inside: avoid; break-inside: avoid;
   }
   .signature-block.single { justify-content: flex-end; }
-  .signature-block .sig { text-align: center; min-width: 220px; }
-  .signature-block .sig-line { border-top: 1px solid var(--ink); padding-top: 6px; font-size: .85rem; font-weight: 600; }
-  .signature-block .sig-school { font-size: .8rem; color: var(--ink); font-weight: 700; margin-top: 2px; }
+  .signature-block .sig { text-align: center; width: 260px; }
+  .signature-block .sig-line { 
+    border-top: 1px solid var(--ink); 
+    padding-top: 8px; 
+    font-size: .85rem; 
+    font-weight: 600; 
+  }
+  .signature-block .sig-school { 
+    font-size: .8rem; color: var(--ink); font-weight: 700; margin-top: 4px; 
+    min-height: 1.2rem;
+  }
 
   /* ---------- Modal ---------- */
   .modal-overlay {
@@ -283,24 +295,15 @@
 
     <div id="quarterSections"></div>
 
-    <div id="grandTotalBlock" class="grand-total-block avoid-break" style="display:none;">
+    <div id="grandTotalBlock" class="grand-total-block page-break" style="display:none;">
       <div class="qtr-section-title" id="grandTotalHeading">Full Year Summary</div>
       <div class="totals">
         <div class="label" id="ftIncomeLabel">Total Income (Full Year)</div><div class="value" id="ftIncome">0</div>
         <div class="label" id="ftExpenditureLabel">Total Expenditure (Full Year)</div><div class="value" id="ftExpenditure">0</div>
         <div class="label grand">Final Remaining Balance</div><div class="value grand" id="ftBalance">0</div>
       </div>
-    </div>
-
-    <div class="signature-block avoid-break" id="signatureBlock">
-      <div class="sig" id="aeoSigBlock">
-        <div class="sig-line">Signature Assistant Education Officer</div>
-        <div class="sig-school" id="aeoMarkazName">&nbsp;</div>
-      </div>
-      <div class="sig">
-        <div class="sig-line">Signature Head Master</div>
-        <div class="sig-school" id="sigSchoolName">&nbsp;</div>
-      </div>
+      <!-- Summary Signature Block -->
+      <div class="dynamic-sig-container"></div>
     </div>
   </div>
 </div>
@@ -416,20 +419,6 @@ function updateDocHeaders() {
   
   document.getElementById('docEmis').textContent = emisInput.value.trim() || '\u2014';
   document.getElementById('docSchoolName').textContent = schoolName || '\u2014';
-  document.getElementById('sigSchoolName').textContent = schoolName || '';
-
-  const isSecondary = /secondary/i.test(markazName || '');
-  const aeoSigBlock = document.getElementById('aeoSigBlock');
-  const signatureBlock = document.getElementById('signatureBlock');
-  
-  if(markazName && !isSecondary){
-    document.getElementById('aeoMarkazName').textContent = markazName;
-    aeoSigBlock.style.display = '';
-    signatureBlock.classList.remove('single');
-  } else {
-    aeoSigBlock.style.display = 'none';
-    signatureBlock.classList.add('single');
-  }
 
   const keys = periodQuarterKeys(period);
   if(keys.length > 1) {
@@ -439,6 +428,11 @@ function updateDocHeaders() {
     document.getElementById('docTitle').textContent = "DETAIL OF VOUCHED ACCOUNT";
     document.getElementById('docSubtitle').textContent = `${PERIOD_LABELS[period]}, Financial Year ${year}`;
   }
+
+  // Inject standard and generous signature blocks actively at the end of every quarter + summary
+  document.querySelectorAll('.dynamic-sig-container').forEach(container => {
+    container.innerHTML = getSignatureHTML();
+  });
 }
 
 function renderQuarterSectionHTML(key, opts){
@@ -452,7 +446,7 @@ function renderQuarterSectionHTML(key, opts){
     </tr>`).join('');
 
   return `
-    <div class="qtr-section avoid-break">
+    <div class="qtr-section avoid-break ${opts.addBreak ? 'page-break' : ''}">
       ${opts.heading ? `<div class="qtr-section-title">${opts.heading}</div>` : ''}
       <div class="qtr-body">
         <div class="income-col">
@@ -499,7 +493,8 @@ function renderQuarterSectionHTML(key, opts){
         <div class="label grand">Remaining Balance</div><div class="value grand" id="bal-btm-${key}">0</div>
       </div>
       <div class="balance-error" id="err-msg-${key}"></div>
-      ${opts.heading ? getSignatureHTML() : ''}
+      <!-- Quarter specific Signature Block injected here -->
+      <div class="dynamic-sig-container"></div>
     </div>`;
 }
 
@@ -515,13 +510,13 @@ function getSignatureHTML() {
 }
 
 function renderStructure() {
-  updateDocHeaders();
   const period = periodSelect.value;
   const keys = periodQuarterKeys(period);
   const grandTotalBlock = document.getElementById('grandTotalBlock');
 
+  // Passing addBreak to force explicit page breaks if multi-quarter is used
   quarterSectionsEl.innerHTML = keys.map((k, i) => 
-    renderQuarterSectionHTML(k, { heading: keys.length > 1 ? PERIOD_LABELS[k] : null, lockPrev: i > 0 })
+    renderQuarterSectionHTML(k, { heading: keys.length > 1 ? PERIOD_LABELS[k] : null, lockPrev: i > 0, addBreak: i > 0 })
   ).join('');
 
   if(keys.length > 1) {
@@ -533,6 +528,7 @@ function renderStructure() {
     grandTotalBlock.style.display = 'none';
   }
   
+  updateDocHeaders();
   updateMathCalculations();
 }
 
@@ -667,13 +663,12 @@ function generatePdfAndReset(){
 
   setTimeout(() => {
     const opt = {
-      margin: 10, // Applying a uniform natural 10mm print margin around the document
+      margin: 15, // Uniform 15mm page margin
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
         scale: 2, useCORS: true, scrollX: 0, scrollY: 0,
         onclone: (clonedDoc) => {
-          // Explicitly map <input> contents to 'value' attributes so Canvas can render them
           clonedDoc.querySelectorAll('input').forEach(input => {
             if (input.type === 'text' || input.type === 'number') {
               input.setAttribute('value', input.value);
@@ -681,8 +676,6 @@ function generatePdfAndReset(){
           });
           
           clonedDoc.querySelectorAll('.remove-row-btn, .row-actions, .add-row-btn').forEach(n => n.style.display = 'none');
-          
-          // Strip physical UI restrictions to let the canvas capture properly
           const docEl = clonedDoc.getElementById('document');
           docEl.style.padding = '0'; docEl.style.margin = '0'; 
           docEl.style.border = 'none'; docEl.style.boxShadow = 'none'; 
