@@ -7,7 +7,7 @@
 
 <!-- Supabase JS client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- html2pdf for native CSS A4 pagination -->
+<!-- html2pdf for native CSS A4/Legal pagination -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,7 +79,7 @@
   .balance-error {
     margin-top: 8px; padding: 8px 12px; border-radius: 6px;
     background: #fdecea; color: var(--danger); border: 1px solid var(--danger);
-    font-size: 13px; font-weight: 600; display: none;
+    font-size: 14px; font-weight: 600; display: none;
   }
 
   .btn {
@@ -91,54 +91,57 @@
   .btn-primary:hover { background: var(--emerald-dark); }
   .btn-ghost { background: transparent; border-color: var(--line); color: var(--ink); }
   .btn-ghost:hover { background: #fff; }
-  .btn-small { padding: 5px 10px; font-size: .75rem; }
+  .btn-small { padding: 5px 10px; font-size: .8rem; }
 
   .sheet-wrap { max-width: 900px; margin: 26px auto 60px; padding: 0 20px; }
 
-  /* ---------- Document Core (Exported to PDF) ---------- */
+  /* ---------- Document Core (Exported to Legal PDF with larger fonts) ---------- */
   #document {
     background: #fff;
-    padding: 20mm 15mm;
+    padding: 12mm 10mm;
     border: 1px solid #000;
     box-shadow: 0 2px 10px rgba(0,0,0,.08);
     box-sizing: border-box;
-    max-width: 210mm;
+    width: 215.9mm; /* Legal width */
+    min-height: 355.6mm; /* Legal height */
     margin: 0 auto;
     display: flex;
     flex-direction: column;
+    font-size: 1.05rem; /* Larger base font */
   }
 
   .doc-header {
     text-align: center; border-bottom: 2px solid #000;
-    padding-bottom: 6px; margin-bottom: 10px;
+    padding-bottom: 8px; margin-bottom: 12px;
   }
   .doc-header h2 {
-    font-family: 'Noto Serif', serif; font-size: 1.05rem;
-    font-weight: 700; margin: 0 0 4px; color: #000;
+    font-family: 'Noto Serif', serif; font-size: 1.35rem;
+    font-weight: 700; margin: 0 0 6px; color: #000;
   }
-  .doc-header .sub { font-size: .82rem; color: #333; }
+  .doc-header .sub { font-size: 1rem; color: #333; }
 
   .school-line {
-    display: flex; justify-content: space-between; font-size: .88rem;
-    margin-bottom: 10px; padding: 6px 10px; border: 1px solid #000; background: #fff;
+    display: flex; justify-content: space-between; font-size: 1.05rem;
+    margin-bottom: 14px; padding: 8px 12px; border: 1px solid #000; background: #fff;
+    font-weight: 600;
   }
   .school-line b { color: #000; }
 
   .avoid-break { page-break-inside: avoid; break-inside: avoid; }
   .page-break { page-break-before: always !important; break-before: page !important; }
 
-  .qtr-section { margin-bottom: 22px; }
+  .qtr-section { margin-bottom: 25px; }
   
   .qtr-section-title {
-    font-family: 'Noto Serif', serif; font-weight: 600; font-size: .95rem;
-    color: #000; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 10px;
+    font-family: 'Noto Serif', serif; font-weight: 700; font-size: 1.2rem;
+    color: #000; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 12px;
   }
 
   /* Flexbox logic for structural integrity in html2canvas */
   .qtr-body {
     display: flex;
     border: 1px solid #000; 
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
   .income-col { 
     width: 35%; 
@@ -147,85 +150,85 @@
     flex-direction: column; 
   }
   .income-col .income-header {
-    background: #fff; font-size: .72rem; padding: 8px; border-bottom: 1px solid #000;
+    background: #fff; font-size: .85rem; padding: 10px; border-bottom: 1px solid #000; font-weight: 700;
   }
   .income-row {
-    display: flex; border-bottom: 1px solid #000; min-height: 22px; flex: 1 1 auto; align-items: stretch;
+    display: flex; border-bottom: 1px solid #000; min-height: 28px; flex: 1 1 auto; align-items: stretch;
   }
   .income-row:last-child { border-bottom: none; }
   .income-row .il {
-    width: 55%; display: flex; align-items: center; padding: 0 8px; font-size: .82rem;
-    font-weight: 600; color: var(--muted); border-right: 1px solid #000; line-height: 1.15;
+    width: 55%; display: flex; align-items: center; padding: 0 10px; font-size: .95rem;
+    font-weight: 600; color: var(--muted); border-right: 1px solid #000; line-height: 1.2;
   }
-  .income-row .iv { width: 45%; display: flex; align-items: center; padding: 0 6px; }
+  .income-row .iv { width: 45%; display: flex; align-items: center; padding: 0 8px; }
   .income-row .iv input {
     width: 100%; height: 100%; border: none; background: transparent;
-    font-family: inherit; font-size: .85rem; font-weight: 600; text-align: center; padding: 0; margin: 0;
+    font-family: inherit; font-size: 1rem; font-weight: 600; text-align: center; padding: 0; margin: 0;
   }
   .income-row .iv input.locked { color: var(--muted); pointer-events: none; }
   .income-row .iv input:focus { outline: 1px solid #000; }
   
-  .income-row.total { background: #fff; border-top: 1px solid #000; flex: 0 0 26px; }
+  .income-row.total { background: #fff; border-top: 1px solid #000; flex: 0 0 32px; }
   .income-row.total .il { color: #000; font-weight: 700; }
-  .income-row.total .iv { justify-content: center; font-weight: 700; color: #000; }
+  .income-row.total .iv { justify-content: center; font-weight: 700; color: #000; font-size: 1.05rem; }
 
   /* Vouchers Table Setup */
   .voucher-col { width: 65%; display: flex; flex-direction: column; }
   table.vouchers { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 0; }
   table.vouchers th, table.vouchers td { border: 1px solid #000; }
   table.vouchers th {
-    font-size: .72rem; text-transform: uppercase; padding: 8px;
+    font-size: .85rem; text-transform: uppercase; padding: 10px;
     text-align: left; font-weight: 700; color: #000;
   }
-  table.vouchers td { height: 22px; padding: 1px 7px; }
-  table.vouchers th:nth-child(1), table.vouchers td.sr { width: 36px; text-align: center; color: var(--muted); font-size: .78rem; }
-  table.vouchers th:nth-child(3), table.vouchers td.amt { width: 110px; }
-  table.vouchers th:nth-child(4), table.vouchers td.rm { width: 30px; text-align: center; }
+  table.vouchers td { height: 28px; padding: 2px 8px; }
+  table.vouchers th:nth-child(1), table.vouchers td.sr { width: 42px; text-align: center; color: var(--muted); font-size: .9rem; }
+  table.vouchers th:nth-child(3), table.vouchers td.amt { width: 125px; }
+  table.vouchers th:nth-child(4), table.vouchers td.rm { width: 35px; text-align: center; }
   
   table.vouchers input {
     width: 100%; border: none; background: transparent; font-family: inherit;
-    font-size: .78rem; padding: 0; margin: 0;
+    font-size: .95rem; padding: 0; margin: 0;
   }
   table.vouchers input:focus { outline: 1px solid #000; }
-  tr.expenditure-row td { font-weight: 700; color: #000; height: 22px; }
-  .row-actions { margin-bottom: 14px; }
+  tr.expenditure-row td { font-weight: 700; color: #000; height: 30px; font-size: 1rem; }
+  .row-actions { margin-bottom: 16px; }
 
   /* Totals styling */
   .totals {
-    display: flex; flex-wrap: wrap; font-size: .88rem;
+    display: flex; flex-wrap: wrap; font-size: 1rem;
     width: 100%; border: 1px solid #000; background: #fff;
   }
   .totals .label { 
-    width: calc(100% - 110px); color: var(--muted); border-right: 1px solid #000; 
-    border-bottom: 1px solid #000; padding: 7px 12px; text-align: right;
+    width: calc(100% - 125px); color: var(--muted); border-right: 1px solid #000; 
+    border-bottom: 1px solid #000; padding: 9px 14px; text-align: right; font-weight: 600;
   }
   .totals .value { 
-    width: 110px; font-weight: 600; text-align: right; 
-    border-bottom: 1px solid #000; padding: 7px 12px;
+    width: 125px; font-weight: 700; text-align: right; 
+    border-bottom: 1px solid #000; padding: 9px 14px;
   }
   .totals .label.grand, .totals .value.grand { border-bottom: none; color: #000; }
-  .totals .value.grand { font-size: 1rem; }
+  .totals .value.grand { font-size: 1.15rem; }
 
   .grand-total-block { padding-top: 0px; }
 
-  /* Redesigned Signature block to add massive signing space and strict positioning */
+  /* Expanded Signature block for comfortable signing */
   .signature-block {
-    margin-top: 65px; 
+    margin-top: 80px; 
     display: flex; justify-content: space-between;
     align-items: flex-end;
     page-break-inside: avoid; break-inside: avoid;
   }
   .signature-block.single { justify-content: flex-end; }
-  .signature-block .sig { text-align: center; width: 260px; }
+  .signature-block .sig { text-align: center; width: 280px; }
   .signature-block .sig-line { 
     border-top: 1px solid var(--ink); 
-    padding-top: 8px; 
-    font-size: .85rem; 
+    padding-top: 10px; 
+    font-size: 1rem; 
     font-weight: 600; 
   }
   .signature-block .sig-school { 
-    font-size: .8rem; color: var(--ink); font-weight: 700; margin-top: 4px; 
-    min-height: 1.2rem;
+    font-size: .9rem; color: var(--ink); font-weight: 700; margin-top: 5px; 
+    min-height: 1.4rem;
   }
 
   /* ---------- Modal ---------- */
@@ -429,7 +432,6 @@ function updateDocHeaders() {
     document.getElementById('docSubtitle').textContent = `${PERIOD_LABELS[period]}, Financial Year ${year}`;
   }
 
-  // Inject standard and generous signature blocks actively at the end of every quarter + summary
   document.querySelectorAll('.dynamic-sig-container').forEach(container => {
     container.innerHTML = getSignatureHTML();
   });
@@ -445,7 +447,6 @@ function renderQuarterSectionHTML(key, opts){
       <td class="rm"><button class="btn-small btn-ghost remove-row-btn" data-q="${key}" data-index="${i}" title="Remove row">&times;</button></td>
     </tr>`).join('');
 
-  // NOTE: avoid-break has been removed from qtr-section so it flows naturally across pages
   return `
     <div class="qtr-section ${opts.addBreak ? 'page-break' : ''}">
       ${opts.heading ? `<div class="qtr-section-title">${opts.heading}</div>` : ''}
@@ -515,7 +516,7 @@ function renderStructure() {
   const keys = periodQuarterKeys(period);
   const grandTotalBlock = document.getElementById('grandTotalBlock');
 
-  // Passing addBreak to force explicit page breaks if multi-quarter is used
+  // i > 0 explicitly adds the .page-break class to ensure Q2, Q3, Q4 start on a brand new page
   quarterSectionsEl.innerHTML = keys.map((k, i) => 
     renderQuarterSectionHTML(k, { heading: keys.length > 1 ? PERIOD_LABELS[k] : null, lockPrev: i > 0, addBreak: i > 0 })
   ).join('');
@@ -664,7 +665,7 @@ function generatePdfAndReset(){
 
   setTimeout(() => {
     const opt = {
-      margin: 15, // Uniform 15mm page margin
+      margin: 10, // Narrow 10mm margins for Legal size optimization
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: {
@@ -683,7 +684,8 @@ function generatePdfAndReset(){
           docEl.style.maxWidth = '100%';
         }
       },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      // Configured explicitly for Legal Paper Size in Portrait mode
+      jsPDF: { unit: 'mm', format: 'legal', orientation: 'portrait' },
       pagebreak: { mode: 'css' }
     };
 
