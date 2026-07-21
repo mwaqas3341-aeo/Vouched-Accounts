@@ -135,7 +135,9 @@
   .school-line b { color: #000; }
 
   .avoid-break { page-break-inside: avoid; break-inside: avoid; }
-  .page-break { page-break-before: always !important; break-before: page !important; }
+  /* .page-break is now just a marker class — actual pagination is forced by
+     JS-inserted .pdf-spacer elements right before export (see insertPageBreakSpacers). */
+  .pdf-spacer { width: 100%; flex: 0 0 auto; }
 
   .qtr-section { margin-bottom: 25px; }
   
@@ -222,7 +224,8 @@
   .signature-block {
     margin-top: 80px; 
     display: flex; justify-content: space-between;
-    align-items: flex-end;
+    align-items: flex-start; /* top-align so both signing lines land at the same height,
+                                 even when one label wraps to two lines and the other doesn't */
     page-break-inside: avoid; break-inside: avoid;
   }
   .signature-block.single { justify-content: flex-end; }
@@ -289,6 +292,7 @@
     <input type="text" id="yearInput" placeholder="2025-26" value="2025-26">
   </div>
   <button class="btn btn-primary" id="downloadBtn">Download PDF</button>
+  <button class="btn btn-ghost" id="clearFormBtn">Clear Form</button>
 </div>
 
 <div class="sheet-wrap">
@@ -661,10 +665,44 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
 document.getElementById('modalCancel').addEventListener('click', () => confirmModal.classList.remove('show'));
 document.getElementById('modalConfirm').addEventListener('click', () => {
   confirmModal.classList.remove('show');
-  generatePdfAndReset();
+  generatePdf();
 });
 
-function generatePdfAndReset(){
+/* ---------------- Manual page-break enforcement ----------------
+   html2pdf's built-in CSS/legacy page-break detection proved unreliable
+   for this layout (quarters kept flowing onto the same page as the one
+   before). Instead, right before export, we measure exactly how far each
+   ".page-break" marked element (Q2/Q3/Q4 sections, grand total block) sits
+   from the top of #document, and insert an invisible spacer of the precise
+   remaining height so that element is always pushed to the top of the
+   next physical page — using the same page-height math html2pdf itself
+   uses when slicing (Legal = 355.6mm = exactly 14in = 1344 CSS px). */
+const PAGE_HEIGHT_PX = 1344; // Legal page height at 96 CSS px/inch
+
+function clearPdfSpacers(){
+  document.querySelectorAll('.pdf-spacer').forEach(el => el.remove());
+}
+
+function insertPageBreakSpacers(){
+  clearPdfSpacers();
+  const docEl = document.getElementById('document');
+  const docTop = docEl.getBoundingClientRect().top;
+
+  docEl.querySelectorAll('.page-break').forEach(el => {
+    const elTop = el.getBoundingClientRect().top;
+    const relativeTop = elTop - docTop;
+    const remainder = relativeTop % PAGE_HEIGHT_PX;
+    if (remainder > 2) { // skip if it already happens to land at a page top
+      const gap = PAGE_HEIGHT_PX - remainder;
+      const spacer = document.createElement('div');
+      spacer.className = 'pdf-spacer';
+      spacer.style.height = gap + 'px';
+      el.parentNode.insertBefore(spacer, el);
+    }
+  });
+}
+
+function generatePdf(){
   const el = document.getElementById('document');
   const filename = `Vouched_Performa_${emisInput.value.trim()||'school'}_${periodSelect.value}.pdf`;
 
@@ -674,6 +712,7 @@ function generatePdfAndReset(){
   // Combined with the onclone cleanup below, this guarantees no side border
   // survives into the exported PDF, even across multi-page slices.
   document.body.classList.add('exporting');
+  insertPageBreakSpacers();
 
   setTimeout(() => {
     const opt = {
@@ -704,19 +743,25 @@ function generatePdfAndReset(){
         }
       },
       // Configured explicitly for Legal Paper Size in Portrait mode
-      jsPDF: { unit: 'mm', format: 'legal', orientation: 'portrait' },
-      // Explicit selector (not just relying on auto CSS detection) makes the
-      // Q2/Q3/Q4 page break fire reliably.
-      pagebreak: { mode: ['css', 'legacy'], before: '.page-break' }
+      jsPDF: { unit: 'mm', format: 'legal', orientation: 'portrait' }
+      // No 'pagebreak' option here on purpose — the manual spacers above already
+      // guarantee correct breaks, and leaving html2pdf's own auto-detection
+      // active risks inserting a second, conflicting break (blank pages).
     };
 
     html2pdf().set(opt).from(el).save().then(() => {
       document.body.classList.remove('exporting');
-      state = { Q1: blankQuarter(), Q2: blankQuarter(), Q3: blankQuarter(), Q4: blankQuarter() };
-      emisInput.value = ''; resetHeaders(); periodSelect.value = 'Q1'; renderStructure();
+      clearPdfSpacers();
     });
   }, 150);
 }
+
+/* ---------------- Clear Form (only reset point — download no longer resets) ---------------- */
+document.getElementById('clearFormBtn').addEventListener('click', () => {
+  if (!confirm('Clear the whole form? Anything entered will be lost.')) return;
+  state = { Q1: blankQuarter(), Q2: blankQuarter(), Q3: blankQuarter(), Q4: blankQuarter() };
+  emisInput.value = ''; resetHeaders(); periodSelect.value = 'Q1'; renderStructure();
+});
 
 /* ---------------- Init ---------------- */
 renderStructure();
