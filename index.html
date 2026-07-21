@@ -136,7 +136,7 @@
 
   .avoid-break { page-break-inside: avoid; break-inside: avoid; }
   /* .page-break is now just a marker class — actual pagination is forced by
-     JS-inserted .pdf-spacer elements right before export (see insertPageBreakSpacers). */
+     JS-inserted .pdf-spacer elements right before export (see insertPageBreakSpacersIn). */
   .pdf-spacer { width: 100%; flex: 0 0 auto; }
 
   .qtr-section { margin-bottom: 25px; }
@@ -517,8 +517,8 @@ function getSignatureHTML() {
   const mLine = markazName ? markazName.replace(/</g,'&lt;') : '';
   return `
     <div class="signature-block avoid-break ${showAeo ? '' : 'single'}">
-      ${showAeo ? `<div class="sig"><div class="sig-line">Signature Assistant Education Officer</div><div class="sig-school">${mLine}</div></div>` : ''}
-      <div class="sig"><div class="sig-line">Signature Head Master</div><div class="sig-school">${sLine}</div></div>
+      ${showAeo ? `<div class="sig"><div class="sig-line">Assistant Education Officer</div><div class="sig-school">${mLine}</div></div>` : ''}
+      <div class="sig"><div class="sig-line">Head Master</div><div class="sig-school">${sLine}</div></div>
     </div>`;
 }
 
@@ -671,7 +671,9 @@ document.getElementById('modalConfirm').addEventListener('click', () => {
 /* ---------------- Manual page-break enforcement ----------------
    html2pdf's built-in CSS/legacy page-break detection proved unreliable
    for this layout (quarters kept flowing onto the same page as the one
-   before). Instead, right before export, we measure exactly how far each
+   before). Instead, right inside onclone — after every other export-only
+   DOM change has already been applied, so we measure the exact same
+   layout html2canvas is about to capture — we check how far each
    ".page-break" marked element (Q2/Q3/Q4 sections, grand total block) sits
    from the top of #document, and insert an invisible spacer of the precise
    remaining height so that element is always pushed to the top of the
@@ -679,13 +681,10 @@ document.getElementById('modalConfirm').addEventListener('click', () => {
    uses when slicing (Legal = 355.6mm = exactly 14in = 1344 CSS px). */
 const PAGE_HEIGHT_PX = 1344; // Legal page height at 96 CSS px/inch
 
-function clearPdfSpacers(){
-  document.querySelectorAll('.pdf-spacer').forEach(el => el.remove());
-}
-
-function insertPageBreakSpacers(){
-  clearPdfSpacers();
-  const docEl = document.getElementById('document');
+function insertPageBreakSpacersIn(doc){
+  const docEl = doc.getElementById('document');
+  if (!docEl) return;
+  docEl.querySelectorAll('.pdf-spacer').forEach(n => n.remove());
   const docTop = docEl.getBoundingClientRect().top;
 
   docEl.querySelectorAll('.page-break').forEach(el => {
@@ -694,7 +693,7 @@ function insertPageBreakSpacers(){
     const remainder = relativeTop % PAGE_HEIGHT_PX;
     if (remainder > 2) { // skip if it already happens to land at a page top
       const gap = PAGE_HEIGHT_PX - remainder;
-      const spacer = document.createElement('div');
+      const spacer = doc.createElement('div');
       spacer.className = 'pdf-spacer';
       spacer.style.height = gap + 'px';
       el.parentNode.insertBefore(spacer, el);
@@ -707,12 +706,6 @@ function generatePdf(){
   const filename = `Vouched_Performa_${emisInput.value.trim()||'school'}_${periodSelect.value}.pdf`;
 
   window.scrollTo(0, 0);
-
-  // Force-strip the on-screen "card" framing (border/shadow) before capture.
-  // Combined with the onclone cleanup below, this guarantees no side border
-  // survives into the exported PDF, even across multi-page slices.
-  document.body.classList.add('exporting');
-  insertPageBreakSpacers();
 
   setTimeout(() => {
     const opt = {
@@ -740,6 +733,22 @@ function generatePdf(){
           docEl.style.border = 'none';
           docEl.style.boxShadow = 'none';
           docEl.style.maxWidth = '100%';
+
+          // Merge the leftover empty 4th column (used on-screen for the
+          // remove-row button) into the Amount column so print output
+          // doesn't show a stray empty box next to each amount.
+          clonedDoc.querySelectorAll('table.vouchers thead tr').forEach(tr => {
+            const ths = tr.querySelectorAll('th');
+            if (ths.length) ths[ths.length - 1].remove();
+          });
+          clonedDoc.querySelectorAll('table.vouchers tbody tr').forEach(tr => {
+            const tds = tr.querySelectorAll('td');
+            if (tds.length) tds[tds.length - 1].remove();
+          });
+
+          // Measured last, after all of the above, so the gap calculation
+          // reflects exactly what html2canvas is about to render.
+          insertPageBreakSpacersIn(clonedDoc);
         }
       },
       // Configured explicitly for Legal Paper Size in Portrait mode
@@ -749,10 +758,7 @@ function generatePdf(){
       // active risks inserting a second, conflicting break (blank pages).
     };
 
-    html2pdf().set(opt).from(el).save().then(() => {
-      document.body.classList.remove('exporting');
-      clearPdfSpacers();
-    });
+    html2pdf().set(opt).from(el).save();
   }, 150);
 }
 
